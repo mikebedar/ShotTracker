@@ -19,7 +19,7 @@ enum AppFormatting {
         return formatter.localizedString(for: date, relativeTo: now)
     }
 
-    nonisolated static func scheduleText(for regimen: MedicationRegimen) -> String {
+    static func scheduleText(for regimen: MedicationRegimen) -> String {
         let timingSummary = regimen.timings.map(\.title).joined(separator: ", ")
 
         switch regimen.recurrenceRule.frequency {
@@ -28,14 +28,27 @@ enum AppFormatting {
         case .intervalDays:
             return "Every \(regimen.recurrenceRule.intervalDays) days at \(timingSummary)"
         case .weekly:
-            let days = regimen.recurrenceRule.weekdays.map(weekdayTitle).joined(separator: ", ")
+            // No weekdays means "the start date's weekday" (what the engine does).
+            let weekdays = regimen.recurrenceRule.weekdays.isEmpty
+                ? [Calendar.current.component(.weekday, from: regimen.anchorDate)]
+                : regimen.recurrenceRule.weekdays
+            let days = weekdays.map(weekdayTitle).joined(separator: ", ")
             return "Weekly on \(days) at \(timingSummary)"
         case .monthly:
             return "Monthly on day \(regimen.recurrenceRule.dayOfMonth) at \(timingSummary)"
         case .cycle:
             return "\(regimen.recurrenceRule.cycleOnDays) days on, \(regimen.recurrenceRule.cycleOffDays) days off at \(timingSummary)"
         case .phased:
-            return "Phased schedule"
+            let phases = regimen.phases.sorted { $0.startDayOffset < $1.startDayOffset }
+            guard !phases.isEmpty else { return "Phased schedule at \(timingSummary)" }
+            let steps = phases.map { phase -> String in
+                let cadence = phase.recurrenceRule.frequency == .intervalDays
+                    ? "every \(phase.recurrenceRule.intervalDays) days"
+                    : "daily"
+                let length = phase.durationDays.map { "\($0) day\($0 == 1 ? "" : "s")" } ?? "ongoing"
+                return "\(phase.title): \(cadence), \(length)"
+            }
+            return steps.joined(separator: " → ") + " at \(timingSummary)"
         }
     }
 

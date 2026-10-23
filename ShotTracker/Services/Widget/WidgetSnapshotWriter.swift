@@ -51,7 +51,19 @@ enum WidgetSnapshotWriter {
             + buckets.laterToday
             + buckets.tonight
 
-        let items = ordered.prefix(itemLimit).map(makeItem)
+        // Tomorrow's doses ride along so the widget is right after midnight even if the
+        // app isn't opened (it used to show yesterday's leftovers, then nothing, until
+        // the next launch). The widget only shows an item once its day has come.
+        let calendar = Calendar.current
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
+        let endOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfTomorrow) ?? startOfTomorrow
+        let tomorrow = doses.filter {
+            $0.scheduledAt >= startOfTomorrow && $0.scheduledAt < endOfTomorrow
+                && $0.medication?.isActive != false
+                && $0.completedAt == nil && $0.lastAction != .skipped
+        }
+
+        let items = ordered.prefix(itemLimit).map(makeItem) + tomorrow.prefix(itemLimit).map(makeItem)
 
         return TodayWidgetSnapshot(
             generatedAt: now,
@@ -70,6 +82,7 @@ enum WidgetSnapshotWriter {
         let medication = dose.medication
         return WidgetDoseItem(
             occurrenceKey: dose.occurrenceKey,
+            medicationID: medication?.id.uuidString,
             displayName: medication?.displayName ?? "Medication",
             kindSymbol: (medication?.kind ?? .oral).symbolName,
             avatarHue: medication?.avatarHue ?? 0,

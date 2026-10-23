@@ -51,6 +51,7 @@ struct DoseCalendarView: UIViewRepresentable {
         calendarView.selectionBehavior = selection
         selection.setSelected(context.coordinator.dateComponents(for: selectedDate), animated: false)
         calendarView.visibleDateComponents = context.coordinator.monthComponents(for: selectedDate)
+        context.coordinator.lastSelectedMonth = calendarView.visibleDateComponents
         context.coordinator.calendarView = calendarView
         context.coordinator.update(parent: self)
 
@@ -58,6 +59,9 @@ struct DoseCalendarView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UICalendarView, context: Context) {
+        // Days that just lost their last dose (an archived medication) need a reload too,
+        // or their old dot stays drawn.
+        let previousDays = context.coordinator.summaryDateComponents
         context.coordinator.update(parent: self)
 
         if let selection = uiView.selectionBehavior as? UICalendarSelectionSingleDate {
@@ -67,8 +71,19 @@ struct DoseCalendarView: UIViewRepresentable {
             }
         }
 
-        uiView.visibleDateComponents = context.coordinator.monthComponents(for: selectedDate)
-        uiView.reloadDecorations(forDateComponents: context.coordinator.summaryDateComponents, animated: true)
+        // Only page when the *selection* moved to another month. Re-setting it on every
+        // update snapped the calendar back whenever anything re-rendered while the user
+        // was browsing another month.
+        let selectedMonth = context.coordinator.monthComponents(for: selectedDate)
+        if context.coordinator.lastSelectedMonth != selectedMonth {
+            context.coordinator.lastSelectedMonth = selectedMonth
+            uiView.visibleDateComponents = selectedMonth
+        }
+
+        var reload = context.coordinator.summaryDateComponents
+        let current = Set(reload.map { [$0.year, $0.month, $0.day] })
+        reload += previousDays.filter { !current.contains([$0.year, $0.month, $0.day]) }
+        uiView.reloadDecorations(forDateComponents: reload, animated: true)
     }
 
     /// Report UICalendarView's real fitting height for the given width, instead of
@@ -87,6 +102,7 @@ struct DoseCalendarView: UIViewRepresentable {
     final class Coordinator: NSObject, UICalendarViewDelegate, UICalendarSelectionSingleDateDelegate {
         var parent: DoseCalendarView
         weak var calendarView: UICalendarView?
+        var lastSelectedMonth: DateComponents?
         private var summaryByKey: [String: CalendarDaySummary] = [:]
 
         init(parent: DoseCalendarView) {

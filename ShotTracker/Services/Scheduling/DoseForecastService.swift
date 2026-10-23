@@ -84,7 +84,8 @@ enum DoseForecastService {
             preferences: preferences,
             anchorOverride: inputs.anchor,
             rollingInterval: inputs.rollingInterval,
-            notBefore: inputs.notBefore
+            notBefore: inputs.notBefore,
+            rollingAnchorSlot: inputs.rollingAnchorSlot
         ).map { occurrence in
             // `medication` is intentionally NOT set on this transient dose: it's never
             // inserted into a ModelContext, but `medication` itself is a real,
@@ -100,7 +101,8 @@ enum DoseForecastService {
                 reminderWindowMinutes: occurrence.reminderWindowMinutes,
                 graceWindowMinutes: occurrence.graceWindowMinutes,
                 windowEndAt: occurrence.windowEndAt,
-                reminderAt: occurrence.reminderAt
+                reminderAt: occurrence.reminderAt,
+                timingID: occurrence.timingID
             )
             return DisplayDoseItem(forecastDose: dose, medication: medication)
         }

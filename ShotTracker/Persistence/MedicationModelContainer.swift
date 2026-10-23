@@ -2,8 +2,10 @@ import Foundation
 import SwiftData
 
 enum MedicationModelContainer {
+    /// `inMemory` backs UI tests and previews: a fresh, empty store per launch that never
+    /// touches `default.store`.
     @MainActor
-    static func makeSharedContainer() throws -> ModelContainer {
+    static func makeSharedContainer(inMemory: Bool = LaunchOptions.isUITesting) throws -> ModelContainer {
         let schema = Schema([
             Medication.self,
             MedicationRegimen.self,
@@ -13,6 +15,10 @@ enum MedicationModelContainer {
             DoseEvent.self,
             RefillEvent.self,
         ])
+
+        if inMemory {
+            return try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        }
 
         let fileManager = FileManager.default
         let applicationSupportURL = try fileManager.url(

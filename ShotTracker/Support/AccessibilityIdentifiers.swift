@@ -18,7 +18,6 @@ enum AccessibilityID {
     static let snoozeDoseButton = "button.snoozeDose"
     static let skipDoseButton = "button.skipDose"
     static let notificationToggle = "toggle.notifications"
-    static let syncToggle = "toggle.icloudSync"
 
     static func medicationRow(_ id: UUID) -> String {
         "row.medication.\(id.uuidString)"

@@ -30,11 +30,11 @@ struct TodayView: View {
         nonmutating set { viewModeRawValue = newValue.rawValue }
     }
 
-    private var activeDoses: [ScheduledDose] {
-        doses.filter { dose in
-            let status = dependencies.statusEvaluator.effectiveStatus(for: dose)
-            return status == .overdue || status == .due || status == .upcoming || status == .snoozed
-        }
+    /// Every persisted dose of an active medication — resolved ones included, so the
+    /// calendar shows what was taken, skipped or missed on past days (and today's taken
+    /// doses don't vanish from the selected day's list).
+    private var calendarDoses: [ScheduledDose] {
+        doses.filter { $0.medication?.isActive != false }
     }
 
     private var calendar: Calendar {
@@ -66,7 +66,7 @@ struct TodayView: View {
 
     /// Persisted + forecasted doses combined, for calendar display only.
     private var calendarDisplayItems: [DisplayDoseItem] {
-        let persisted = activeDoses.map { dose in
+        let persisted = calendarDoses.map { dose in
             DisplayDoseItem(dose: dose, status: dependencies.statusEvaluator.effectiveStatus(for: dose))
         }
         return persisted + forecastItems
@@ -96,7 +96,9 @@ struct TodayView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            // Re-render every minute so a dose flips upcoming → due → overdue on screen
+            // as its window opens and closes, not only when something else changes.
+            TimelineView(.everyMinute) { _ in
                 if viewMode == .list {
                     listModeContent
                 } else {
@@ -222,11 +224,12 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.s3) {
                 SectionHeader(title: title, count: doses.count, tone: tone)
                 ForEach(doses) { dose in
+                    let status = dependencies.statusEvaluator.effectiveStatus(for: dose)
                     DoseCard(
                         dose: dose,
-                        status: dependencies.statusEvaluator.effectiveStatus(for: dose),
+                        status: status,
                         onTake: { takeDose(dose) },
-                        onSnooze: { snoozeDose(dose) },
+                        onSnooze: DoseActions.canSnooze(dose, status: status) ? { snoozeDose(dose) } : nil,
                         onSkip: { skipDose(dose) },
                         onUndo: { undoDose(dose) }
                     )
@@ -325,7 +328,7 @@ struct TodayView: View {
 
     private func undoDose(_ dose: ScheduledDose) {
         dependencies.recordDoseAction(.pending, dose: dose, context: modelContext)
-        toastMessage = "Undone"
+        toastMessage = "Undid \(dose.medication?.displayName ?? "dose")"
     }
 }
 

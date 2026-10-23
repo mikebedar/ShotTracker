@@ -21,7 +21,7 @@ struct MedicationDetailView: View {
             for: medication,
             engine: dependencies.scheduleEngine,
             preferences: dependencies.preferencesStore.preferences
-        ).map(SupplyForecastService.summaryText)
+        ).map { SupplyForecastService.summaryText(for: $0) }
     }
 
     var body: some View {
@@ -150,7 +150,7 @@ struct MedicationDetailView: View {
 
     private func logRefill() {
         guard let quantity = Int(refillQuantityText.trimmingCharacters(in: .whitespaces)), quantity > 0 else { return }
-        try? MedicationRepository.logRefill(quantity, for: medication, in: modelContext)
+        dependencies.logRefill(quantity, for: medication, context: modelContext)
     }
 
     private func deleteMedication() {

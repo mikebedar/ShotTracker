@@ -27,7 +27,7 @@ struct DoseCard: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s3) {
             header
 
-            if isActionable, let onTake, let onSnooze, let onSkip {
+            if isActionable, let onTake, let onSkip {
                 DoseActionBar(doseID: dose.id, status: status, onTake: onTake, onSnooze: onSnooze, onSkip: onSkip)
             }
 
@@ -108,12 +108,12 @@ struct DoseCard: View {
     }
 
     private var timingText: String {
-        let label = dose.timingLabel.replacingOccurrences(of: "-", with: " ").capitalized
         if dose.isFlexibleWindow {
             // "Morning · anytime by 12:00 PM"
-            return "\(label) · anytime by \(dose.windowEnd.formatted(date: .omitted, time: .shortened))"
+            return "\(dose.slotTitle) · anytime by \(dose.windowEnd.formatted(date: .omitted, time: .shortened))"
         }
-        return "\(label) at \(dose.scheduledAt.formatted(date: .omitted, time: .shortened))"
+        // A precise dose: its slot *is* its time ("At 9:02 AM").
+        return "At \(dose.scheduledAt.formatted(date: .omitted, time: .shortened))"
     }
 
     private var resolvedFooter: some View {
@@ -158,7 +158,7 @@ struct DoseCard: View {
     private var accessibilityLabel: String {
         var parts = ["\(medicationName), \(status.title.lowercased()), \(timingText)."]
         if isActionable {
-            parts.append("Actions: Take, Snooze, Skip.")
+            parts.append(onSnooze == nil ? "Actions: Take, Skip." : "Actions: Take, Snooze, Skip.")
         } else if isResolved, onUndo != nil {
             parts.append("Double tap Undo to revert.")
         }

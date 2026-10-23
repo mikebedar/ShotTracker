@@ -12,6 +12,16 @@ struct GeneratedDoseOccurrence: Identifiable, Hashable {
     let timingLabel: String
     let reminderWindowMinutes: Int
     let graceWindowMinutes: Int
+    /// The `DailyTiming.id` this occurrence came from.
+    var timingID: UUID? = nil
+}
+
+/// The slot a rolling (`.rescheduleFromLastDose`) regimen's last real dose occupied on
+/// its day. Later slots that day still happen: taking the morning dose of a twice-daily
+/// injection must not erase that evening's dose.
+struct RollingAnchorSlot: Hashable {
+    let timingID: UUID?
+    let timingLabel: String
 }
 
 /// A timing resolved to concrete clock times for a day: a window (`start`==`end` for a
@@ -23,6 +33,7 @@ struct ResolvedTiming: Hashable {
     let reminder: ClockTime
     let isWindow: Bool
     let reminderWindowMinutes: Int
+    let timingID: UUID
 }
 
 final class DoseScheduleEngine {
@@ -44,7 +55,8 @@ final class DoseScheduleEngine {
         preferences: AppPreferences,
         anchorOverride: Date? = nil,
         rollingInterval: DateComponents? = nil,
-        notBefore: Date? = nil
+        notBefore: Date? = nil,
+        rollingAnchorSlot: RollingAnchorSlot? = nil
     ) -> [GeneratedDoseOccurrence] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: regimen.timeZoneIdentifier) ?? .current
@@ -58,7 +70,7 @@ final class DoseScheduleEngine {
             occurrences = rollingOccurrences(
                 for: regimen, medicationID: medicationID, interval: rollingInterval,
                 anchorDay: anchorDay, startDay: startDay, endDay: endDay,
-                calendar: calendar, preferences: preferences
+                calendar: calendar, preferences: preferences, anchorSlot: rollingAnchorSlot
             )
         } else {
             occurrences = matchedOccurrences(
@@ -97,10 +109,20 @@ final class DoseScheduleEngine {
             }
 
             let phase = activePhase(for: daysFromAnchor, regimen: regimen)
+            // A phased regimen doses only inside its phases: once the last finite phase
+            // ends (a finished taper) there's nothing more to take. It used to fall back
+            // to the regimen's own `.phased` rule, which matches every day — so a 10-day
+            // prednisone taper went on daily forever.
+            if regimen.recurrenceRule.frequency == .phased, phase == nil {
+                cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
+                continue
+            }
             let rule = phase?.recurrenceRule ?? regimen.recurrenceRule
             let timings = phase?.timings.isEmpty == false ? phase?.timings ?? [] : regimen.timings
+            // A phase's own interval counts from the phase's first day, not the regimen's.
+            let ruleOffset = daysFromAnchor - (phase?.startDayOffset ?? 0)
 
-            if matches(rule: rule, on: cursor, anchorDay: anchorDay, dayOffset: daysFromAnchor, calendar: calendar) {
+            if matches(rule: rule, on: cursor, anchorDay: anchorDay, dayOffset: ruleOffset, calendar: calendar) {
                 occurrences.append(contentsOf: makeOccurrences(on: cursor, timings: timings, regimen: regimen, medicationID: medicationID, calendar: calendar, preferences: preferences))
             }
 
@@ -121,11 +143,27 @@ final class DoseScheduleEngine {
         startDay: Date,
         endDay: Date,
         calendar: Calendar,
-        preferences: AppPreferences
+        preferences: AppPreferences,
+        anchorSlot: RollingAnchorSlot?
     ) -> [GeneratedDoseOccurrence] {
         var occurrences: [GeneratedDoseOccurrence] = []
         var cursor = anchorDay
         var guardCounter = 0
+
+        // The anchor day itself: only the slots that come after the one the last dose
+        // filled (none when that slot can't be identified, e.g. after a timing edit).
+        if let anchorSlot, anchorDay >= startDay, anchorDay <= endDay {
+            let ordered = resolveTimings(regimen.timings, preferences: preferences)
+                .sorted { ($0.start.hour * 60 + $0.start.minute) < ($1.start.hour * 60 + $1.start.minute) }
+            let takenIndex = ordered.firstIndex { timing in
+                if let id = anchorSlot.timingID { return timing.timingID == id }
+                return timing.label == anchorSlot.timingLabel
+            } ?? ordered.firstIndex { $0.label == anchorSlot.timingLabel }
+            if let takenIndex {
+                let later = Array(ordered[(takenIndex + 1)...])
+                occurrences.append(contentsOf: makeOccurrences(on: anchorDay, resolved: later, regimen: regimen, medicationID: medicationID, calendar: calendar))
+            }
+        }
 
         while cursor <= endDay {
             guardCounter += 1
@@ -149,10 +187,28 @@ final class DoseScheduleEngine {
         calendar: Calendar,
         preferences: AppPreferences
     ) -> [GeneratedDoseOccurrence] {
-        resolveTimings(timings, preferences: preferences).map { timing in
+        makeOccurrences(
+            on: day,
+            resolved: resolveTimings(timings, preferences: preferences),
+            regimen: regimen,
+            medicationID: medicationID,
+            calendar: calendar
+        )
+    }
+
+    private func makeOccurrences(
+        on day: Date,
+        resolved: [ResolvedTiming],
+        regimen: MedicationRegimen,
+        medicationID: UUID,
+        calendar: Calendar
+    ) -> [GeneratedDoseOccurrence] {
+        resolved.map { timing in
             let scheduledAt = timing.start.applying(to: day, calendar: calendar)
-            let dayKey = Self.occurrenceDateFormatter.string(from: scheduledAt)
-            let occurrenceKey = "\(medicationID.uuidString)-v\(regimen.version)-\(dayKey)-\(timing.label)"
+            let occurrenceKey = Self.occurrenceKey(
+                medicationID: medicationID, version: regimen.version,
+                scheduledAt: scheduledAt, label: timing.label, calendar: calendar
+            )
 
             return GeneratedDoseOccurrence(
                 occurrenceKey: occurrenceKey,
@@ -161,9 +217,19 @@ final class DoseScheduleEngine {
                 reminderAt: timing.reminder.applying(to: day, calendar: calendar),
                 timingLabel: timing.label,
                 reminderWindowMinutes: timing.reminderWindowMinutes,
-                graceWindowMinutes: regimen.graceWindowMinutes
+                graceWindowMinutes: regimen.graceWindowMinutes,
+                timingID: timing.timingID
             )
         }
+    }
+
+    /// `"{medicationID}-v{version}-{yyyyMMddHHmm}-{label}"`, with the date read in the
+    /// regimen's calendar (its time zone). A formatter in the device's current zone made
+    /// every key change when the user travelled, re-materializing doses already taken.
+    static func occurrenceKey(medicationID: UUID, version: Int, scheduledAt: Date, label: String, calendar: Calendar) -> String {
+        let c = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: scheduledAt)
+        let stamp = String(format: "%04d%02d%02d%02d%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0)
+        return "\(medicationID.uuidString)-v\(version)-\(stamp)-\(label)"
     }
 
     private func activePhase(for dayOffset: Int, regimen: MedicationRegimen) -> RegimenPhase? {
@@ -203,17 +269,18 @@ final class DoseScheduleEngine {
     }
 
     private func resolveTimings(_ timings: [DailyTiming], preferences: AppPreferences) -> [ResolvedTiming] {
-        let source = timings.isEmpty ? [DailyTiming(kind: .morning)] : timings
+        let source = timings.isEmpty ? [Self.fallbackTiming] : timings
 
         return source.map { timing in
-            let label = timing.title.replacingOccurrences(of: " ", with: "-").lowercased()
+            let label = timing.slotLabel
 
             if timing.kind == .exactTime {
                 // A precise point: window collapses to the single time, remind at it.
                 let time = timing.exactTime ?? timing.overrideTime ?? ClockTime(hour: 8, minute: 0)
                 return ResolvedTiming(
                     label: label, start: time, end: time, reminder: time,
-                    isWindow: false, reminderWindowMinutes: max(15, timing.reminderWindowMinutes)
+                    isWindow: false, reminderWindowMinutes: max(15, timing.reminderWindowMinutes),
+                    timingID: timing.id
                 )
             }
 
@@ -226,10 +293,17 @@ final class DoseScheduleEngine {
 
             return ResolvedTiming(
                 label: label, start: window.start, end: window.end, reminder: reminder,
-                isWindow: true, reminderWindowMinutes: max(15, timing.reminderWindowMinutes)
+                isWindow: true, reminderWindowMinutes: max(15, timing.reminderWindowMinutes),
+                timingID: timing.id
             )
         }
     }
+
+    /// Used when a regimen has no timings; a fixed id keeps its doses' identity stable.
+    static let fallbackTiming = DailyTiming(
+        id: UUID(uuidString: "00000000-0000-0000-0000-00000000F00D")!,
+        kind: .morning
+    )
 
     /// Remind near a window's close: `end − lead`, never before the window opens.
     private func reminderTime(for window: DoseWindow, leadMinutes: Int) -> ClockTime {
@@ -243,10 +317,4 @@ final class DoseScheduleEngine {
         calendar.range(of: .day, in: .month, for: day)?.count ?? 28
     }
 
-    private static let occurrenceDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMddHHmm"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
 }

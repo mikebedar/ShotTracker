@@ -1,11 +1,12 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct SettingsView: View {
     @Environment(\.appDependencies) private var dependencies
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
     @State private var preferencesStore = AppPreferencesStore.shared
-    @State private var syncSettingsStore = SyncSettingsStore.shared
 
     private let editableSlots: [TimingAnchorKind] = [
         .morning,
@@ -43,11 +44,7 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    Button("Request Notification Permission") {
-                        Task {
-                            await dependencies.notificationScheduler.requestAuthorization()
-                        }
-                    }
+                    permissionRow
 
                     Stepper(
                         "Remind \(preferencesStore.preferences.windowReminderLeadMinutes) min before a window closes",
@@ -87,26 +84,57 @@ struct SettingsView: View {
                 Section {
                     Toggle("Show medication names in widget", isOn: Binding(
                         get: { preferencesStore.preferences.showMedicationNamesInWidget },
-                        set: { newValue in
-                            preferencesStore.preferences.showMedicationNamesInWidget = newValue
-                            dependencies.refreshWidgetSnapshot(context: modelContext)
-                        }
+                        set: { preferencesStore.preferences.showMedicationNamesInWidget = $0 }
                     ))
                 } header: {
                     Text("Home Screen Widget")
                 } footer: {
                     Text("When off, the widget hides medication names — it shows only times, counts, and status, so nothing sensitive appears on your home screen.")
                 }
-
-                Section("Sync") {
-                    Toggle("Enable iCloud Sync", isOn: $syncSettingsStore.isICloudSyncEnabled)
-                        .accessibilityIdentifier(AccessibilityID.syncToggle)
-                    Text("Sync remains local-first for now. Turning this on stores your preference so CloudKit-backed migration can be added later without changing the rest of the app.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
             }
             .navigationTitle("Settings")
+            .task {
+                await dependencies.notificationScheduler.refreshAuthorizationStatus()
+            }
+            // Routine windows and the reminder lead change which doses exist and when they
+            // remind; the global toggles change what's pending. Apply them now, not at the
+            // next dose action.
+            .onChange(of: preferencesStore.preferences) {
+                dependencies.preferencesChanged(context: modelContext)
+            }
+        }
+    }
+
+    /// Whether reminders can actually arrive. A denied permission used to be invisible:
+    /// every toggle here looked on while nothing was ever delivered.
+    @ViewBuilder
+    private var permissionRow: some View {
+        switch dependencies.notificationScheduler.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            Label("Notifications are allowed", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(Theme.Color.statusTaken)
+        case .denied:
+            VStack(alignment: .leading, spacing: Theme.Spacing.s2) {
+                Label("Notifications are turned off for ShotTracker", systemImage: "bell.slash.fill")
+                    .foregroundStyle(Theme.Color.statusOverdue)
+                Text("Reminders can't arrive until you allow them in the Settings app.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button("Open Notification Settings") {
+                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                        openURL(url)
+                    }
+                }
+            }
+        case .notDetermined:
+            Button("Allow Notifications") {
+                Task {
+                    await dependencies.notificationScheduler.requestAuthorization()
+                    dependencies.refreshSchedules(context: modelContext)
+                }
+            }
+        @unknown default:
+            EmptyView()
         }
     }
 

@@ -16,6 +16,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(try! MedicationModelContainer.makeSharedContainer())
+        .modelContainer(try! MedicationModelContainer.makeSharedContainer(inMemory: true))
         .environment(\.appDependencies, .shared)
 }

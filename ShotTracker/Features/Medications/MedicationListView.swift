@@ -105,8 +105,10 @@ private struct MedicationSummaryRow: View {
     let medication: Medication
 
     private var nextDose: ScheduledDose? {
-        medication.scheduledDoses
+        let superseded = DoseSupersession.supersededIDs(for: medication, now: .now)
+        return medication.scheduledDoses
             .filter {
+                guard !superseded.contains($0.id) else { return false }
                 let status = dependencies.statusEvaluator.effectiveStatus(for: $0)
                 return status == .upcoming || status == .due || status == .overdue || status == .snoozed
             }

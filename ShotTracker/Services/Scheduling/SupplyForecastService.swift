@@ -30,13 +30,24 @@ enum SupplyForecastService {
         guard remaining > 0 else { return nil }
         guard let horizon = calendar.date(byAdding: .day, value: horizonDays, to: now) else { return nil }
 
-        // Forecast occurrences from now forward; a dose whose window is still open counts
-        // as future consumption, one that already closed does not.
-        let upcoming = DoseForecastService
+        // Future consumption: the persisted (materialized) doses still to come — they know
+        // what's already been taken or skipped today, which a stateless forecast doesn't
+        // (it counted a dose taken this morning a second time, so the projection ran a day
+        // short) — then forecast occurrences past the last persisted one. A dose whose
+        // window already closed doesn't count either way.
+        let persisted = medication.scheduledDoses.filter {
+            $0.completedAt == nil && $0.lastAction != .skipped && $0.windowEnd > now
+        }
+        let persistedThrough = medication.scheduledDoses.map(\.scheduledAt).max()
+        let forecast = DoseForecastService
             .occurrences(for: [medication], engine: engine, in: now...horizon, preferences: preferences)
             .map(\.dose)
-            .filter { $0.windowEnd > now }
-            .sorted { $0.scheduledAt < $1.scheduledAt }
+            .filter { dose in
+                guard dose.windowEnd > now else { return false }
+                guard let persistedThrough else { return true }
+                return dose.scheduledAt > persistedThrough
+            }
+        let upcoming = (persisted + forecast).sorted { $0.scheduledAt < $1.scheduledAt }
 
         guard upcoming.count >= remaining else { return nil }  // outlasts the horizon
 

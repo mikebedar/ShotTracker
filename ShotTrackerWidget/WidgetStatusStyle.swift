@@ -62,7 +62,7 @@ extension TodayWidgetSnapshot {
     /// Items resolved at `date` and re-sorted overdue-first (the writer's order can drift as
     /// time advances and an upcoming dose becomes due/overdue).
     func resolvedItems(at date: Date) -> [ResolvedWidgetItem] {
-        items
+        items(relevantAt: date)
             .map { ResolvedWidgetItem(item: $0, status: $0.resolvedStatus(now: date)) }
             .sorted { a, b in
                 let pa = WidgetStatusStyle.priority(a.status)

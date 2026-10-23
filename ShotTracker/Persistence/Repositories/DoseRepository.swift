@@ -34,40 +34,56 @@ enum DoseRepository {
                 preferences: preferences,
                 anchorOverride: inputs.anchor,
                 rollingInterval: inputs.rollingInterval,
-                notBefore: inputs.notBefore
+                notBefore: inputs.notBefore,
+                rollingAnchorSlot: inputs.rollingAnchorSlot
             )
 
-            let existingByKey = Dictionary(uniqueKeysWithValues: medication.scheduledDoses.map { ($0.occurrenceKey, $0) })
-            let validKeys = Set(generated.map(\.occurrenceKey))
+            var regimenCalendar = Calendar(identifier: .gregorian)
+            regimenCalendar.timeZone = TimeZone(identifier: regimen.timeZoneIdentifier) ?? .current
+            let plan = DoseReconciliation.plan(
+                existing: medication.scheduledDoses.map(DoseReconciliation.Row.init),
+                generated: generated,
+                currentVersion: regimen.version,
+                rangeStart: regimenCalendar.startOfDay(for: start),
+                rangeEnd: end,
+                now: referenceDate,
+                calendar: regimenCalendar
+            )
 
-            for occurrence in generated {
-                if let existing = existingByKey[occurrence.occurrenceKey] {
-                    existing.scheduledAt = occurrence.scheduledAt
-                    existing.timingLabel = occurrence.timingLabel
-                    existing.reminderWindowMinutes = occurrence.reminderWindowMinutes
-                    existing.graceWindowMinutes = occurrence.graceWindowMinutes
-                    existing.windowEndAt = occurrence.windowEndAt
-                    existing.reminderAt = occurrence.reminderAt
-                    existing.regimenVersion = regimen.version
-                } else {
-                    let dose = ScheduledDose(
-                        occurrenceKey: occurrence.occurrenceKey,
-                        regimenVersion: regimen.version,
-                        scheduledAt: occurrence.scheduledAt,
-                        timingLabel: occurrence.timingLabel,
-                        reminderWindowMinutes: occurrence.reminderWindowMinutes,
-                        graceWindowMinutes: occurrence.graceWindowMinutes,
-                        windowEndAt: occurrence.windowEndAt,
-                        reminderAt: occurrence.reminderAt,
-                        medication: medication
-                    )
-                    medication.scheduledDoses.append(dose)
-                    context.insert(dose)
-                }
+            let doseByID = Dictionary(uniqueKeysWithValues: medication.scheduledDoses.map { ($0.id, $0) })
+            for (doseID, occurrence) in plan.updates {
+                guard let existing = doseByID[doseID] else { continue }
+                existing.occurrenceKey = occurrence.occurrenceKey
+                existing.scheduledAt = occurrence.scheduledAt
+                existing.timingLabel = occurrence.timingLabel
+                existing.reminderWindowMinutes = occurrence.reminderWindowMinutes
+                existing.graceWindowMinutes = occurrence.graceWindowMinutes
+                existing.windowEndAt = occurrence.windowEndAt
+                existing.reminderAt = occurrence.reminderAt
+                existing.regimenVersion = regimen.version
+                existing.timingID = occurrence.timingID
             }
 
-            for dose in medication.scheduledDoses where !validKeys.contains(dose.occurrenceKey) {
-                if dose.events.isEmpty, dose.completedAt == nil {
+            for occurrence in plan.inserts {
+                let dose = ScheduledDose(
+                    occurrenceKey: occurrence.occurrenceKey,
+                    regimenVersion: regimen.version,
+                    scheduledAt: occurrence.scheduledAt,
+                    timingLabel: occurrence.timingLabel,
+                    reminderWindowMinutes: occurrence.reminderWindowMinutes,
+                    graceWindowMinutes: occurrence.graceWindowMinutes,
+                    windowEndAt: occurrence.windowEndAt,
+                    reminderAt: occurrence.reminderAt,
+                    medication: medication,
+                    generatedAt: referenceDate,
+                    timingID: occurrence.timingID
+                )
+                medication.scheduledDoses.append(dose)
+                context.insert(dose)
+            }
+
+            for doseID in plan.deletes {
+                if let dose = doseByID[doseID] {
                     context.delete(dose)
                 }
             }
@@ -84,6 +100,11 @@ enum DoseRepository {
         context: ModelContext
     ) throws {
         let evaluator = DoseStatusEvaluator()
+        // Snoozing a dose whose window hasn't opened would pull it *forward* (the snooze
+        // end becomes its new window start). Nothing to snooze yet — and no event.
+        if action == .snoozed, evaluator.effectiveStatus(for: dose, now: now) == .upcoming {
+            return
+        }
         let previousAction = dose.lastAction
         let event = DoseEvent(
             loggedAt: now,

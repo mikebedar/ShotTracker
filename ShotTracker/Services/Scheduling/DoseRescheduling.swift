@@ -10,6 +10,9 @@ enum DoseRescheduling {
         let anchor: Date
         let notBefore: Date?
         let rollingInterval: DateComponents?
+        /// For a rolling regimen: the slot the last real dose filled on the anchor day,
+        /// so that day's later slots are still generated.
+        var rollingAnchorSlot: RollingAnchorSlot? = nil
     }
 
     static func engineInputs(for medication: Medication, regimen: MedicationRegimen) -> EngineInputs {
@@ -21,7 +24,8 @@ enum DoseRescheduling {
         guard
             regimen.missedDosePolicy == .rescheduleFromLastDose,
             let interval = regimen.nominalIntervalComponents,
-            let lastTaken = medication.lastAdministeredAt
+            let lastDose = medication.lastTakenDose,
+            let lastTaken = lastDose.completedAt
         else {
             return EngineInputs(
                 anchor: regimen.anchorDate,
@@ -33,7 +37,8 @@ enum DoseRescheduling {
         return EngineInputs(
             anchor: calendar.startOfDay(for: lastTaken),
             notBefore: lastTaken,
-            rollingInterval: interval
+            rollingInterval: interval,
+            rollingAnchorSlot: RollingAnchorSlot(timingID: lastDose.timingID, timingLabel: lastDose.timingLabel)
         )
     }
 
@@ -41,9 +46,10 @@ enum DoseRescheduling {
     /// occurrences from before it existed — editing a schedule bumps the version, and
     /// regenerating the materialization window's 7-day lookback under the new version's
     /// keys would otherwise fabricate a week of phantom "overdue" doses for days that
-    /// already happened. And if a dose was already completed on the day the version was
-    /// created (the common "took today's dose, then edited the schedule" flow), the new
-    /// grid starts the *next* day — today was already handled.
+    /// already happened. Slots on the creation day that the old version already handled
+    /// (the "took today's dose, then edited the schedule" flow) are reconciled by
+    /// `DoseRepository.refreshSchedules`, slot by slot, so a twice-daily med keeps its
+    /// evening dose after an edit made once the morning one was taken.
     ///
     /// The floor is a fixed instant (the version's creation day), so it becomes inert
     /// once the rolling window advances past it — it never suppresses or prunes rows
@@ -53,15 +59,7 @@ enum DoseRescheduling {
         regimen: MedicationRegimen,
         calendar: Calendar
     ) -> Date {
-        var floorDay = calendar.startOfDay(for: regimen.createdAt)
-
-        let completedOnCreationDay = medication.scheduledDoses.contains { dose in
-            guard let completedAt = dose.completedAt else { return false }
-            return calendar.isDate(completedAt, inSameDayAs: regimen.createdAt)
-        }
-        if completedOnCreationDay, let nextDay = calendar.date(byAdding: .day, value: 1, to: floorDay) {
-            floorDay = nextDay
-        }
+        let floorDay = calendar.startOfDay(for: regimen.createdAt)
 
         // Exclusive filter (`scheduledAt <= notBefore` is dropped): back off one second
         // so a dose scheduled exactly at the floor's midnight still survives.

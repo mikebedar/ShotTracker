@@ -26,7 +26,10 @@ private struct ToastModifier: ViewModifier {
                     Toast(text: message)
                         .padding(.bottom, Theme.Spacing.s7)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .accessibilityAddTraits(.isStaticText)
                         .task(id: message) {
+                            // The toast is visual only; tell VoiceOver what happened.
+                            AccessibilityNotification.Announcement(message).post()
                             try? await Task.sleep(for: .seconds(2.2))
                             if self.message == message { self.message = nil }
                         }

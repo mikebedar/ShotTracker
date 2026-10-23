@@ -40,7 +40,13 @@ struct MedicationLookupResponse: Decodable {
         var container = try decoder.unkeyedContainer()
         totalCount = try container.decode(Int.self)
         codes = try container.decode([String].self)
-        extras = try? container.decode(Extras.self)
+        // A failed `try?` decode doesn't advance an unkeyed container, so a `null` here
+        // used to make the next field (the display rows) fail and the whole search throw.
+        if try container.decodeNil() {
+            extras = nil
+        } else {
+            extras = try? container.decode(Extras.self)
+        }
         displayRows = try container.decode([[String]].self)
     }
 }
@@ -48,7 +54,7 @@ struct MedicationLookupResponse: Decodable {
 final class MedicationLookupService {
     private let urlSession: URLSession
 
-    init(urlSession: URLSession = .shared) {
+    init(urlSession: URLSession = LaunchOptions.urlSession) {
         self.urlSession = urlSession
     }
 

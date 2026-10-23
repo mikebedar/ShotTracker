@@ -11,7 +11,7 @@ enum HistoryCSVExporter {
                 dateString(event.loggedAt),
                 timeString(event.loggedAt),
                 event.medication?.displayName ?? "",
-                event.action.title,
+                event.action.historyTitle,
                 event.scheduledDose.map { scheduledForString($0) } ?? "",
                 event.note,
             ]))
@@ -38,7 +38,7 @@ enum HistoryCSVExporter {
     }
 
     private static func scheduledForString(_ dose: ScheduledDose) -> String {
-        "Scheduled \(dateString(dose.scheduledAt)) \(timeString(dose.scheduledAt)) (\(dose.timingLabel.replacingOccurrences(of: "-", with: " ")))"
+        "Scheduled \(dateString(dose.scheduledAt)) \(timeString(dose.scheduledAt)) (\(dose.slotTitle))"
     }
 
     private static func dateString(_ date: Date) -> String {

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 import SwiftData
 import SwiftUI
 import WidgetKit
@@ -14,75 +15,80 @@ final class AppDependencies {
     let lookupService = MedicationLookupService()
     let notificationScheduler = NotificationScheduler()
     let preferencesStore = AppPreferencesStore.shared
-    let syncSettingsStore = SyncSettingsStore.shared
 
     private(set) var hasBootstrapped = false
+    @ObservationIgnored private var notificationTask: Task<Void, Never>?
+    @ObservationIgnored private var preferencesRefreshTask: Task<Void, Never>?
+
+    private static let log = Logger(subsystem: "bedar.net.ShotTracker", category: "dependencies")
 
     func bootstrapIfNeeded(context: ModelContext) async {
         guard !hasBootstrapped else { return }
         hasBootstrapped = true
 
-        do {
-            try DoseRepository.refreshSchedules(
-                in: context,
-                engine: scheduleEngine,
-                preferences: preferencesStore.preferences
-            )
-        } catch {
-            // Keep the app running even if sample data or refresh work fails.
+        #if DEBUG
+        if LaunchOptions.seedsDemoData {
+            DemoData.seedIfEmpty(in: context)
         }
+        #endif
 
+        regenerate(context: context)
         await notificationScheduler.refreshAuthorizationStatus()
-        await notificationScheduler.rescheduleAll(
-            in: context,
-            preferences: preferencesStore.preferences,
-            evaluator: statusEvaluator,
-            engine: scheduleEngine
-        )
-
+        await rescheduleNotifications(context: context)
         refreshWidgetSnapshot(context: context)
     }
 
+    /// Regenerates the materialized window, then (coalesced) reschedules notifications
+    /// and republishes the widget. Every schedule-affecting change goes through here.
     func refreshSchedules(context: ModelContext) {
-        do {
-            try DoseRepository.refreshSchedules(
-                in: context,
-                engine: scheduleEngine,
-                preferences: preferencesStore.preferences
-            )
-        } catch {
-            // The UI will continue to show existing data if refresh fails.
-        }
-
-        Task {
-            await notificationScheduler.rescheduleAll(
-                in: context,
-                preferences: preferencesStore.preferences,
-                evaluator: statusEvaluator,
-                engine: scheduleEngine
-            )
-        }
-
+        regenerate(context: context)
+        scheduleNotificationRefresh(context: context)
         refreshWidgetSnapshot(context: context)
+    }
+
+    /// The app came to the foreground: the day may have changed (the 7…90-day window
+    /// moves, yesterday's widget snapshot is stale, the pending-notification budget needs
+    /// topping up) and notification permission may have changed in Settings.
+    func sceneBecameActive(context: ModelContext) {
+        guard hasBootstrapped else { return }
+        refreshSchedules(context: context)
+    }
+
+    /// Settings that change generation (routine windows, reminder lead) or reminders
+    /// (the global toggles) used to apply only at the next dose action. Coalesced so
+    /// dragging a time picker doesn't regenerate on every tick.
+    func preferencesChanged(context: ModelContext) {
+        preferencesRefreshTask?.cancel()
+        preferencesRefreshTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled, let self else { return }
+            self.refreshSchedules(context: context)
+        }
     }
 
     func recordDoseAction(_ action: DoseActionType, dose: ScheduledDose, context: ModelContext) {
         do {
             try DoseRepository.applyAction(action, to: dose, context: context)
         } catch {
+            Self.log.error("Dose action \(action.rawValue, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             return
         }
 
-        notificationScheduler.cancelNotifications(for: dose.occurrenceKey)
-        Task {
-            await notificationScheduler.rescheduleAll(
-                in: context,
-                preferences: preferencesStore.preferences,
-                evaluator: statusEvaluator,
-                engine: scheduleEngine
-            )
-        }
+        // A taken dose can re-anchor a rolling schedule; regenerate before rescheduling.
+        refreshSchedules(context: context)
+    }
 
+    /// Logs a refill and refreshes what depends on supply (the refill reminder and the
+    /// widget) — `MedicationDetailView` used to call the repository directly, so the
+    /// run-out reminder kept pointing at the old date.
+    func logRefill(_ quantity: Int, for medication: Medication, context: ModelContext) {
+        do {
+            try MedicationRepository.logRefill(quantity, for: medication, in: context)
+        } catch {
+            Self.log.error("Refill failed: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        scheduleNotificationRefresh(context: context)
         refreshWidgetSnapshot(context: context)
     }
 
@@ -93,6 +99,39 @@ final class AppDependencies {
             context: context,
             evaluator: statusEvaluator,
             preferences: preferencesStore.preferences
+        )
+    }
+
+    private func regenerate(context: ModelContext) {
+        do {
+            try DoseRepository.refreshSchedules(
+                in: context,
+                engine: scheduleEngine,
+                preferences: preferencesStore.preferences
+            )
+        } catch {
+            // The UI keeps showing existing data if a refresh fails.
+            Self.log.error("Schedule refresh failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// One reschedule at a time: `rescheduleAll` clears every pending request and adds
+    /// the new plan, so two overlapping runs could interleave and lose reminders.
+    private func scheduleNotificationRefresh(context: ModelContext) {
+        let previous = notificationTask
+        notificationTask = Task { [weak self] in
+            await previous?.value
+            guard let self else { return }
+            await self.rescheduleNotifications(context: context)
+        }
+    }
+
+    private func rescheduleNotifications(context: ModelContext) async {
+        await notificationScheduler.rescheduleAll(
+            in: context,
+            preferences: preferencesStore.preferences,
+            evaluator: statusEvaluator,
+            engine: scheduleEngine
         )
     }
 }

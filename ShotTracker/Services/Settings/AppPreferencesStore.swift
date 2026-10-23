@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-struct AppPreferences: Codable {
+struct AppPreferences: Codable, Equatable {
     var defaultSlotWindows: [String: DoseWindow]
     var windowReminderLeadMinutes: Int
     var globalNotificationsEnabled: Bool
@@ -73,7 +73,7 @@ struct AppPreferences: Codable {
 final class AppPreferencesStore {
     static let shared = AppPreferencesStore()
 
-    private let defaults = UserDefaults.standard
+    private let defaults = LaunchOptions.defaults
     private let storageKey = "medicationTracker.appPreferences"
 
     var preferences: AppPreferences {

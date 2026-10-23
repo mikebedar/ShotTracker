@@ -2,7 +2,7 @@ import PhotosUI
 import SwiftData
 import SwiftUI
 
-private struct MedicationDraft {
+struct MedicationDraft {
     var displayName = ""
     var canonicalName = ""
     var normalizedMedicationCode = ""
@@ -21,11 +21,13 @@ private struct MedicationDraft {
     var anchorDate = Date()
     var frequency: ScheduleFrequency = .daily
     var intervalDays = 1
-    var weekdays = Set<Int>([2])
-    var dayOfMonth = 1
+    /// Defaults to today's weekday / day of month, not a fixed Monday / the 1st.
+    var weekdays = Set<Int>([Calendar.current.component(.weekday, from: .now)])
+    var dayOfMonth = Calendar.current.component(.day, from: .now)
     var cycleOnDays = 1
     var cycleOffDays = 0
     var timings: [DailyTiming] = [DailyTiming(kind: .morning)]
+    var phases: [PhaseDraft] = []
     var graceWindowMinutes = 180
     var missedDosePolicy: MissedDosePolicy = .keepToSchedule
     var minimumIntervalDays = 3
@@ -67,6 +69,9 @@ private struct MedicationDraft {
             cycleOnDays = regimen.recurrenceRule.cycleOnDays
             cycleOffDays = regimen.recurrenceRule.cycleOffDays
             timings = regimen.timings.isEmpty ? [DailyTiming(kind: .morning)] : regimen.timings
+            phases = regimen.phases
+                .sorted { $0.startDayOffset < $1.startDayOffset }
+                .map { PhaseDraft(phase: $0) }
             graceWindowMinutes = regimen.graceWindowMinutes
             missedDosePolicy = regimen.missedDosePolicy
             minimumIntervalDays = max(1, Int((Double(regimen.effectiveMinimumIntervalHours) / 24).rounded()))
@@ -96,6 +101,60 @@ private struct MedicationDraft {
         )
     }
 
+    /// The phase models for a `.phased` regimen: consecutive, starting at day 0. Phase
+    /// timings stay empty so every phase uses the regimen's own "When" list.
+    func makePhases() -> [RegimenPhase] {
+        guard frequency == .phased else { return [] }
+        var offset = 0
+        return phases.enumerated().map { index, draft in
+            let isLast = index == phases.count - 1
+            let duration: Int? = isLast && draft.isOngoing ? nil : max(1, draft.durationDays)
+            let phase = RegimenPhase(
+                title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Phase \(index + 1)" : draft.title,
+                startDayOffset: offset,
+                durationDays: duration,
+                recurrenceRule: RecurrenceRule(frequency: draft.frequency, intervalDays: draft.intervalDays),
+                timings: []
+            )
+            offset += duration ?? 0
+            return phase
+        }
+    }
+
+    /// Whether the schedule differs from `regimen` — only then does a save create a new
+    /// regimen version. Every version bump re-keys every future dose, so renaming a
+    /// medication or changing its notes used to churn the whole schedule.
+    func scheduleDiffers(from regimen: MedicationRegimen?) -> Bool {
+        guard let regimen else { return true }
+        let calendar = Calendar.current
+        let existingPhases = regimen.phases
+            .sorted { $0.startDayOffset < $1.startDayOffset }
+            .map { PhaseDraft(phase: $0) }
+        return !calendar.isDate(anchorDate, inSameDayAs: regimen.anchorDate)
+            || recurrenceRule != regimen.recurrenceRule
+            || timings != regimen.timings
+            || graceWindowMinutes != regimen.graceWindowMinutes
+            || missedDosePolicy != regimen.missedDosePolicy
+            || minimumIntervalHours != regimen.minimumIntervalHours
+            || (frequency == .phased && phases.map(\.comparable) != existingPhases.map(\.comparable))
+    }
+
+    var minimumIntervalHours: Int? {
+        missedDosePolicy == .rescheduleFromLastDose ? minimumIntervalDays * 24 : nil
+    }
+
+    func reminderPolicyDiffers(from policy: ReminderPolicy?) -> Bool {
+        guard let policy else { return true }
+        return policy.isEnabled != remindersEnabled
+            || policy.dueRemindersEnabled != dueRemindersEnabled
+            || policy.overdueRemindersEnabled != overdueRemindersEnabled
+            || policy.playSound != playSound
+            || policy.allowSnooze != allowSnooze
+            || policy.defaultSnoozeMinutes != defaultSnoozeMinutes
+            || policy.maxReminderCount != maxReminderCount
+            || policy.escalationIntervalsMinutes != parsedEscalationIntervals
+    }
+
     var reminderPolicy: ReminderPolicy {
         ReminderPolicy(
             isEnabled: remindersEnabled,
@@ -116,6 +175,32 @@ private struct MedicationDraft {
             .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
             .filter { $0 >= 0 }
         return values.isEmpty ? [0, 30, 120, 720, 1440] : values
+    }
+}
+
+/// One phase of a `.phased` regimen in the editor (a taper or titration step).
+struct PhaseDraft: Identifiable, Hashable {
+    var id = UUID()
+    var title = ""
+    var durationDays = 7
+    /// Only meaningful on the last phase: keep going with no end date.
+    var isOngoing = false
+    var frequency: ScheduleFrequency = .daily
+    var intervalDays = 2
+
+    init() {}
+
+    init(phase: RegimenPhase) {
+        title = phase.title
+        durationDays = phase.durationDays ?? 7
+        isOngoing = phase.durationDays == nil
+        frequency = phase.recurrenceRule.frequency == .intervalDays ? .intervalDays : .daily
+        intervalDays = max(2, phase.recurrenceRule.intervalDays)
+    }
+
+    /// Identity-free view for change detection.
+    var comparable: [String] {
+        [title, isOngoing ? "ongoing" : "\(durationDays)", frequency.rawValue, frequency == .intervalDays ? "\(intervalDays)" : ""]
     }
 }
 
@@ -157,7 +242,7 @@ struct EditMedicationView: View {
 
     init(medication: Medication? = nil) {
         self.medication = medication
-        _draft = State(initialValue: medication.map(MedicationDraft.init) ?? MedicationDraft())
+        _draft = State(initialValue: medication.map { MedicationDraft(medication: $0) } ?? MedicationDraft())
         _searchModel = State(initialValue: MedicationSearchModel(lookupService: AppDependencies.shared.lookupService))
         // Editing preserves the saved policy; a brand-new med lets it follow the kind.
         _missedDosePolicyUserSet = State(initialValue: medication != nil)
@@ -184,10 +269,10 @@ struct EditMedicationView: View {
                 medicationDetailsSection
 
                 Section("Schedule") {
-                    DatePicker("Anchor date", selection: $draft.anchorDate, displayedComponents: .date)
+                    DatePicker("Starts on", selection: $draft.anchorDate, displayedComponents: .date)
 
                     Picker("Frequency", selection: $draft.frequency) {
-                        ForEach([ScheduleFrequency.daily, .intervalDays, .weekly, .monthly, .cycle], id: \.self) { frequency in
+                        ForEach(ScheduleFrequency.allCases) { frequency in
                             Text(frequency.title).tag(frequency)
                         }
                     }
@@ -219,7 +304,9 @@ struct EditMedicationView: View {
                     case .cycle:
                         Stepper("\(draft.cycleOnDays) days on", value: $draft.cycleOnDays, in: 1...30)
                         Stepper("\(draft.cycleOffDays) days off", value: $draft.cycleOffDays, in: 0...30)
-                    case .daily, .phased:
+                    case .phased:
+                        phasesEditor
+                    case .daily:
                         EmptyView()
                     }
 
@@ -251,19 +338,25 @@ struct EditMedicationView: View {
                         }
                     }
                     .onDelete { offsets in
+                        // A schedule needs at least one time; deleting the last one used
+                        // to fall back to an invisible "Morning" in the engine.
+                        guard draft.timings.count - offsets.count >= 1 else { return }
                         draft.timings.remove(atOffsets: offsets)
                     }
+                    .deleteDisabled(draft.timings.count <= 1)
 
                     Button("Add Another Time") {
-                        draft.timings.append(DailyTiming(kind: .morning))
+                        draft.timings.append(DailyTiming(kind: nextUnusedSlot()))
                     }
 
-                    Stepper(
-                        "Grace window \(draft.graceWindowMinutes / 60) hours",
-                        value: $draft.graceWindowMinutes,
-                        in: 60...1440,
-                        step: 60
-                    )
+                    if draft.timings.contains(where: { $0.kind == .exactTime }) {
+                        Stepper(
+                            "On time up to \(draft.graceWindowMinutes / 60) hour\(draft.graceWindowMinutes == 60 ? "" : "s") after a specific time",
+                            value: $draft.graceWindowMinutes,
+                            in: 60...1440,
+                            step: 60
+                        )
+                    }
                 }
 
                 Section("Missed dose handling") {
@@ -300,7 +393,7 @@ struct EditMedicationView: View {
                     Toggle("Track supply", isOn: $draft.tracksSupply)
 
                     if draft.tracksSupply {
-                        TextField("Unit (e.g. tablets, doses)", text: $draft.supplyUnitLabel)
+                        TextField("Unit (\(defaultSupplyUnit))", text: $draft.supplyUnitLabel)
 
                         Stepper(
                             "Units per container: \(draft.unitsPerContainer)",
@@ -339,7 +432,6 @@ struct EditMedicationView: View {
                     Stepper("Maximum reminders \(draft.maxReminderCount)", value: $draft.maxReminderCount, in: 1...12)
                     TextField("Escalation in minutes", text: $draft.escalationIntervalsText)
                         .keyboardType(.numbersAndPunctuation)
-                    Stepper("Routine slot window \(draft.routineWindowMinutes) minutes", value: $draft.routineWindowMinutes, in: 30...240, step: 15)
                 }
             }
         }
@@ -361,7 +453,9 @@ struct EditMedicationView: View {
         .task(id: selectedPhotoItem) {
             guard let selectedPhotoItem else { return }
             if let data = try? await selectedPhotoItem.loadTransferable(type: Data.self) {
-                draft.imageData = data
+                // Store a small JPEG, not the full camera image: the artwork view decodes
+                // it on every render of every row that shows this medication.
+                draft.imageData = PhotoDownscaler.thumbnailData(from: data) ?? data
             }
         }
         .onChange(of: lookupSelection) { _, newValue in
@@ -457,8 +551,52 @@ struct EditMedicationView: View {
         }
     }
 
+    private var defaultSupplyUnit: String {
+        draft.kind == .injection ? "doses" : "tablets"
+    }
+
+    private func nextUnusedSlot() -> TimingAnchorKind {
+        let used = Set(draft.timings.map(\.kind))
+        return [TimingAnchorKind.morning, .noon, .evening, .bedtime, .night].first { !used.contains($0) } ?? .exactTime
+    }
+
+    @ViewBuilder
+    private var phasesEditor: some View {
+        Text("Each phase runs for a number of days, one after another from the start date, at the times below.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        ForEach($draft.phases) { $phase in
+            let index = draft.phases.firstIndex { $0.id == phase.id } ?? 0
+            let isLast = index == draft.phases.count - 1
+            VStack(alignment: .leading, spacing: 8) {
+                TextField("Phase \(index + 1) name", text: $phase.title)
+                Picker("Doses", selection: $phase.frequency) {
+                    Text("Every day").tag(ScheduleFrequency.daily)
+                    Text("Every few days").tag(ScheduleFrequency.intervalDays)
+                }
+                if phase.frequency == .intervalDays {
+                    Stepper("Every \(phase.intervalDays) days", value: $phase.intervalDays, in: 2...30)
+                }
+                if isLast {
+                    Toggle("Continue with no end", isOn: $phase.isOngoing)
+                }
+                if !(isLast && phase.isOngoing) {
+                    Stepper("Lasts \(phase.durationDays) day\(phase.durationDays == 1 ? "" : "s")", value: $phase.durationDays, in: 1...365)
+                }
+            }
+        }
+        .onDelete { offsets in
+            draft.phases.remove(atOffsets: offsets)
+        }
+        Button("Add Phase") {
+            draft.phases.append(PhaseDraft())
+        }
+    }
+
     private func toggleWeekday(_ weekday: Int) {
         if draft.weekdays.contains(weekday) {
+            // Keep at least one day selected ("Weekly on  at Morning" otherwise).
+            guard draft.weekdays.count > 1 else { return }
             draft.weekdays.remove(weekday)
         } else {
             draft.weekdays.insert(weekday)
@@ -515,6 +653,10 @@ struct EditMedicationView: View {
             focusedField = .displayName
             return
         }
+        guard draft.frequency != .phased || !draft.phases.isEmpty else {
+            validationMessage = "Add at least one phase, or pick another frequency."
+            return
+        }
 
         validationMessage = nil
 
@@ -533,7 +675,10 @@ struct EditMedicationView: View {
 
         if draft.tracksSupply {
             let perContainer = max(1, draft.unitsPerContainer)
+            // An empty unit used to switch tracking off silently (tracking means a
+            // non-empty unit); fall back to the placeholder the field showed.
             medication.supplyUnitLabel = draft.supplyUnitLabel.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                ?? defaultSupplyUnit
             medication.unitsPerContainer = perContainer
             medication.supplyLowThreshold = draft.supplyLowThreshold
             // Preserve the existing container breakdown when the on-hand total is unchanged
@@ -550,36 +695,52 @@ struct EditMedicationView: View {
             modelContext.insert(medication)
         }
 
-        for existingRegimen in medication.regimens where existingRegimen.isActive {
-            existingRegimen.isActive = false
+        let currentRegimen = medication.regimens.active
+        if draft.scheduleDiffers(from: currentRegimen) {
+            for existingRegimen in medication.regimens where existingRegimen.isActive {
+                existingRegimen.isActive = false
+            }
+
+            let newVersion = (medication.regimens.map(\.version).max() ?? 0) + 1
+            let regimen = MedicationRegimen(
+                version: newVersion,
+                anchorDate: draft.anchorDate,
+                recurrenceRule: draft.recurrenceRule,
+                timings: draft.timings,
+                graceWindowMinutes: draft.graceWindowMinutes,
+                missedDosePolicy: draft.missedDosePolicy,
+                minimumIntervalHours: draft.minimumIntervalHours,
+                medication: medication
+            )
+            for phase in draft.makePhases() {
+                phase.regimen = regimen
+                regimen.phases.append(phase)
+                modelContext.insert(phase)
+            }
+            let reminderPolicy = draft.reminderPolicy
+            reminderPolicy.regimen = regimen
+            regimen.reminderPolicies.append(reminderPolicy)
+            medication.regimens.append(regimen)
+
+            modelContext.insert(regimen)
+            modelContext.insert(reminderPolicy)
+        } else if let currentRegimen, draft.reminderPolicyDiffers(from: currentRegimen.activeReminderPolicy) {
+            // Reminder settings don't change which doses exist — no new version, just a
+            // newer policy (`activeReminderPolicy` is the most recent one).
+            let reminderPolicy = draft.reminderPolicy
+            reminderPolicy.regimen = currentRegimen
+            currentRegimen.reminderPolicies.append(reminderPolicy)
+            modelContext.insert(reminderPolicy)
         }
-
-        let newVersion = (medication.regimens.map(\.version).max() ?? 0) + 1
-        let regimen = MedicationRegimen(
-            version: newVersion,
-            anchorDate: draft.anchorDate,
-            recurrenceRule: draft.recurrenceRule,
-            timings: draft.timings,
-            graceWindowMinutes: draft.graceWindowMinutes,
-            missedDosePolicy: draft.missedDosePolicy,
-            minimumIntervalHours: draft.missedDosePolicy == .rescheduleFromLastDose ? draft.minimumIntervalDays * 24 : nil,
-            medication: medication
-        )
-        let reminderPolicy = draft.reminderPolicy
-        reminderPolicy.regimen = regimen
-        regimen.reminderPolicies.append(reminderPolicy)
-        medication.regimens.append(regimen)
-
-        modelContext.insert(regimen)
-        modelContext.insert(reminderPolicy)
 
         try? modelContext.save()
         dependencies.refreshSchedules(context: modelContext)
 
         // Prime the notification permission at the moment it makes obvious sense — the
         // user just created a schedule that needs reminders. iOS shows the system prompt
-        // only once; later calls are no-ops.
-        if dependencies.notificationScheduler.authorizationStatus == .notDetermined {
+        // only once; later calls are no-ops. (Not under UI tests: the system alert
+        // would sit on top of the next screen.)
+        if dependencies.notificationScheduler.authorizationStatus == .notDetermined, !LaunchOptions.isUITesting {
             Task { await dependencies.notificationScheduler.requestAuthorization() }
         }
 

@@ -30,13 +30,19 @@ enum TodayBucketing {
         guard let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfToday) else { return buckets }
         let tonightStart = calendar.date(bySettingHour: tonightHour, minute: 0, second: 0, of: startOfToday) ?? startOfToday
 
+        let superseded = DoseSupersession.supersededIDs(in: doses, now: now, calendar: calendar)
+
         for dose in doses {
             guard dose.scheduledAt < startOfTomorrow else { continue }
+            // An archived medication's leftover rows never belong on Today.
+            if dose.medication?.isActive == false { continue }
 
             switch statusFor(dose) {
             case .overdue:
-                // No lower date bound: a dose missed on an earlier day is still
-                // overdue today and needs attention.
+                // A dose missed on an earlier day stays overdue until a later dose of the
+                // same medication comes due — then it's history (a miss), not a to-do.
+                // Showing every missed daily pill from the past week helps no one.
+                if superseded.contains(dose.id) { continue }
                 buckets.overdue.append(dose)
             case .due:
                 buckets.takeNow.append(dose)
@@ -108,5 +114,35 @@ enum TodayBucketing {
         return grouped
             .map { day, items in ComingUpGroup(date: day, items: items.sorted { $0.dose.scheduledAt < $1.dose.scheduledAt }) }
             .sorted { $0.date < $1.date }
+    }
+}
+
+/// Which unresolved doses a later dose of the same medication has replaced. A dose from
+/// an earlier day is superseded once another dose of that medication has opened its
+/// window (`scheduledAt <= now`). Today's doses are never superseded — a missed morning
+/// dose can still be taken late in the afternoon.
+enum DoseSupersession {
+    static func supersededIDs(in doses: [ScheduledDose], now: Date, calendar: Calendar = .current) -> Set<UUID> {
+        let startOfToday = calendar.startOfDay(for: now)
+        var latestStartedByMedication: [UUID: Date] = [:]
+        for dose in doses where dose.scheduledAt <= now {
+            guard let medicationID = dose.medication?.id else { continue }
+            latestStartedByMedication[medicationID] = max(latestStartedByMedication[medicationID] ?? .distantPast, dose.scheduledAt)
+        }
+
+        var result = Set<UUID>()
+        for dose in doses where dose.scheduledAt < startOfToday && dose.completedAt == nil && dose.lastAction != .skipped {
+            guard let medicationID = dose.medication?.id,
+                  let latest = latestStartedByMedication[medicationID],
+                  latest > dose.scheduledAt
+            else { continue }
+            result.insert(dose.id)
+        }
+        return result
+    }
+
+    /// Convenience for one medication's own rows.
+    static func supersededIDs(for medication: Medication, now: Date, calendar: Calendar = .current) -> Set<UUID> {
+        supersededIDs(in: medication.scheduledDoses, now: now, calendar: calendar)
     }
 }

@@ -18,7 +18,7 @@ struct DoseEventRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text(event.action.title)
+            Text(event.action.historyTitle)
                 .font(.subheadline.weight(.medium))
             Text(event.loggedAt.formatted(date: .abbreviated, time: .shortened))
                 .font(.subheadline)

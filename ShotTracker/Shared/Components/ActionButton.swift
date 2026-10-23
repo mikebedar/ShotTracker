@@ -99,7 +99,8 @@ struct DoseActionBar: View {
     let doseID: UUID
     let status: DoseStatus
     var onTake: () -> Void
-    var onSnooze: () -> Void
+    /// nil hides Snooze (an upcoming dose, or a medication whose reminders disallow it).
+    var onSnooze: (() -> Void)?
     var onSkip: () -> Void
 
     var body: some View {
@@ -122,14 +123,16 @@ struct DoseActionBar: View {
             accessibilityIdentifier: AccessibilityID.takeDoseButton(doseID),
             accessibilityHint: "Logs this scheduled dose as taken."
         )
-        ActionButton(
-            title: "Snooze",
-            systemImage: "moon",
-            kind: .quiet,
-            action: onSnooze,
-            accessibilityIdentifier: AccessibilityID.snoozeDoseButton(doseID),
-            accessibilityHint: "Moves the reminder later."
-        )
+        if let onSnooze {
+            ActionButton(
+                title: "Snooze",
+                systemImage: "moon",
+                kind: .quiet,
+                action: onSnooze,
+                accessibilityIdentifier: AccessibilityID.snoozeDoseButton(doseID),
+                accessibilityHint: "Moves the reminder later."
+            )
+        }
         ActionButton(
             title: "Skip",
             systemImage: "minus.circle",

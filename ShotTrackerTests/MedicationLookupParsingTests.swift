@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ShotTracker
 
@@ -48,5 +49,12 @@ struct MedicationLookupParsingTests {
     @Test func emptyStrengthsProducesNoVariants() {
         let variants = MedicationLookupService.parseVariants(strengthsAndForms: [], rxcuis: ["861007"])
         #expect(variants.isEmpty)
+    }
+
+    @Test(arguments: [#"[0,[],{},[]]"#, #"[0,[],null,[]]"#])
+    func emptyResponsesDecode(json: String) throws {
+        let response = try JSONDecoder().decode(MedicationLookupResponse.self, from: Data(json.utf8))
+        #expect(response.totalCount == 0)
+        #expect(response.displayRows.isEmpty)
     }
 }

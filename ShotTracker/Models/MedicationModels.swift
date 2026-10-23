@@ -45,6 +45,12 @@ enum DoseActionType: String, Codable, CaseIterable, Identifiable {
         case .pending: "Pending"
         }
     }
+
+    /// How a logged event reads in History and the CSV export. Undo is logged as a
+    /// `.pending` event, which "Pending" misdescribes.
+    var historyTitle: String {
+        self == .pending ? "Undone" : title
+    }
 }
 
 enum DoseStatus: String, Codable, CaseIterable, Identifiable {
@@ -219,11 +225,20 @@ struct ClockTime: Codable, Hashable {
         )) ?? day
     }
 
-    var displayText: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(hour * 3600 + minute * 60)))
+    /// Localized short time ("9:02 AM", "09:02"). Formats a wall-clock time on a fixed
+    /// reference day *in the calendar's own time zone* — formatting an offset from the
+    /// 1970 epoch (the old approach) read it back in local time, shifting every label by
+    /// the UTC offset ("4:02 AM" for a 9:02 dose in New York).
+    var displayText: String { displayText() }
+
+    func displayText(calendar: Calendar = .current, locale: Locale = .current) -> String {
+        // Jan 1 2001 has no DST transition anywhere, so every wall-clock time exists.
+        let date = calendar.date(from: DateComponents(year: 2001, month: 1, day: 1, hour: hour, minute: minute)) ?? .distantPast
+        var style = Date.FormatStyle(date: .omitted, time: .shortened)
+        style.calendar = calendar
+        style.timeZone = calendar.timeZone
+        style.locale = locale
+        return date.formatted(style)
     }
 }
 
@@ -261,9 +276,65 @@ struct DailyTiming: Codable, Hashable, Identifiable {
 
         return kind.title
     }
+
+    /// Stable, locale-independent slot label stored on each `ScheduledDose` and embedded
+    /// in its `occurrenceKey`: "morning", "before-bed", or "at-0902" for a specific time.
+    /// (It used to be the localized title, so an exact-time label changed with the
+    /// locale or 12/24-hour setting — and carried the UTC-offset bug of `displayText`.)
+    var slotLabel: String {
+        if kind == .exactTime {
+            let time = exactTime ?? overrideTime ?? ClockTime(hour: 8, minute: 0)
+            return String(format: "at-%02d%02d", time.hour, time.minute)
+        }
+        return kind.slotLabel
+    }
 }
 
-struct RecurrenceRule: Codable, Hashable {
+extension TimingAnchorKind {
+    /// The label a named slot's doses carry ("morning", "before-bed").
+    var slotLabel: String {
+        title.replacingOccurrences(of: " ", with: "-").lowercased()
+    }
+
+    /// Reverse of `slotLabel` for display; nil for exact-time labels.
+    init?(slotLabel: String) {
+        guard let kind = TimingAnchorKind.allCases.first(where: { $0 != .exactTime && $0.slotLabel == slotLabel }) else {
+            return nil
+        }
+        self = kind
+    }
+}
+
+/// Human-readable slot names for stored doses. `ScheduledDose.timingLabel` is an
+/// identifier, not display text — never `.capitalized` it in a view.
+enum SlotTitle {
+    /// "Morning", "Before bed", or the dose's time for a precise (exact-time) dose.
+    static func title(label: String, scheduledAt: Date, isWindow: Bool) -> String {
+        if let kind = TimingAnchorKind(slotLabel: label) {
+            return kind.title
+        }
+        if !isWindow {
+            return scheduledAt.formatted(date: .omitted, time: .shortened)
+        }
+        let words = label.replacingOccurrences(of: "-", with: " ")
+        return words.prefix(1).uppercased() + words.dropFirst()
+    }
+
+    /// A slot label on its own (no dose), e.g. the adherence card's "most missed".
+    static func title(label: String) -> String {
+        if let kind = TimingAnchorKind(slotLabel: label) {
+            return kind.title
+        }
+        if label.hasPrefix("at-"), label.count == 7,
+           let hour = Int(label.dropFirst(3).prefix(2)), let minute = Int(label.suffix(2)) {
+            return ClockTime(hour: hour, minute: minute).displayText
+        }
+        let words = label.replacingOccurrences(of: "-", with: " ")
+        return words.prefix(1).uppercased() + words.dropFirst()
+    }
+}
+
+nonisolated struct RecurrenceRule: Codable, Hashable {
     var frequency: ScheduleFrequency
     var intervalDays: Int
     var weekdays: [Int]
@@ -446,10 +517,14 @@ final class Medication {
     /// marked taken. Drives `.rescheduleFromLastDose` scheduling (the schedule rolls
     /// forward from here). `nil` until the first dose is taken.
     var lastAdministeredAt: Date? {
+        lastTakenDose?.completedAt
+    }
+
+    /// The dose behind `lastAdministeredAt`.
+    var lastTakenDose: ScheduledDose? {
         scheduledDoses
-            .filter { $0.lastAction == .taken }
-            .compactMap(\.completedAt)
-            .max()
+            .filter { $0.lastAction == .taken && $0.completedAt != nil }
+            .max { ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast) }
     }
 
     /// Draw down one unit from the open container, dropping it when it empties so the
@@ -672,6 +747,10 @@ final class ScheduledDose {
     var completedAt: Date?
     var snoozedUntil: Date?
     var generatedAt: Date
+    /// The `DailyTiming.id` this dose was generated from — the slot's identity across
+    /// regimen versions and key changes, so a refresh can recognise "today's morning dose"
+    /// even after its key changed. nil on rows written before this existed.
+    var timingID: UUID?
 
     var medication: Medication?
 
@@ -691,9 +770,11 @@ final class ScheduledDose {
         status: DoseStatus = .upcoming,
         lastAction: DoseActionType = .pending,
         medication: Medication? = nil,
-        generatedAt: Date = .now
+        generatedAt: Date = .now,
+        timingID: UUID? = nil
     ) {
         self.id = id
+        self.timingID = timingID
         self.occurrenceKey = occurrenceKey
         self.regimenVersion = regimenVersion
         self.scheduledAt = scheduledAt
@@ -732,6 +813,15 @@ final class ScheduledDose {
 
     /// True when this dose spans a real range rather than a single instant + grace.
     var isFlexibleWindow: Bool { windowEndAt != nil }
+
+    /// "Morning", "Before bed", or "9:02 AM" — see `SlotTitle`.
+    var slotTitle: String {
+        SlotTitle.title(label: timingLabel, scheduledAt: scheduledAt, isWindow: isFlexibleWindow)
+    }
+
+    /// Never acted on: no completion and no logged events. Only untouched rows are ever
+    /// pruned or re-keyed freely by `DoseRepository.refreshSchedules`.
+    var isUntouched: Bool { completedAt == nil && events.isEmpty }
 }
 
 @Model

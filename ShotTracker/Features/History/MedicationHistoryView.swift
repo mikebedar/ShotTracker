@@ -141,7 +141,7 @@ struct MedicationHistoryView: View {
             )
             statTile(value: "\(adherence.currentStreakDays)", label: "day streak")
             if let slot = adherence.mostMissedSlot {
-                statTile(value: slot.capitalized, label: "most missed")
+                statTile(value: SlotTitle.title(label: slot), label: "most missed")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -169,7 +169,7 @@ struct MedicationHistoryView: View {
         }
         parts.append("\(adherence.currentStreakDays) day streak")
         if let slot = adherence.mostMissedSlot {
-            parts.append("most missed slot: \(slot)")
+            parts.append("most missed slot: \(SlotTitle.title(label: slot))")
         }
         return parts.joined(separator: ", ")
     }
@@ -186,5 +186,7 @@ struct MedicationHistoryView: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityHint("Shows only this medication's history.")
     }
 }

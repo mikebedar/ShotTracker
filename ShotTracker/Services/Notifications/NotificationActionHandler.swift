@@ -10,6 +10,8 @@ final class NotificationActionHandler: NSObject, UNUserNotificationCenterDelegat
     /// Category + action identifiers shared with `NotificationScheduler`.
     enum Identifier {
         static let doseCategory = "DOSE_REMINDER"
+        /// Same, without Snooze — for medications whose reminder policy disallows it.
+        static let doseCategoryNoSnooze = "DOSE_REMINDER_NO_SNOOZE"
         static let take = "DOSE_TAKE"
         static let snooze = "DOSE_SNOOZE"
         static let skip = "DOSE_SKIP"
@@ -17,6 +19,17 @@ final class NotificationActionHandler: NSObject, UNUserNotificationCenterDelegat
 
     /// Set once at launch; needed to resolve an occurrenceKey back to its dose.
     @MainActor var modelContainer: ModelContainer?
+
+    static func categories() -> Set<UNNotificationCategory> {
+        let withSnooze = doseCategory()
+        let withoutSnooze = UNNotificationCategory(
+            identifier: Identifier.doseCategoryNoSnooze,
+            actions: withSnooze.actions.filter { $0.identifier != Identifier.snooze },
+            intentIdentifiers: [],
+            options: []
+        )
+        return [withSnooze, withoutSnooze]
+    }
 
     static func doseCategory() -> UNNotificationCategory {
         UNNotificationCategory(
@@ -49,7 +62,7 @@ final class NotificationActionHandler: NSObject, UNUserNotificationCenterDelegat
             return
         }
 
-        await apply(actionType, occurrenceKey: occurrenceKey)
+        apply(actionType, occurrenceKey: occurrenceKey)
     }
 
     func userNotificationCenter(

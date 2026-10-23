@@ -20,21 +20,23 @@ struct TodayWidgetProvider: TimelineProvider {
         let snapshot = Self.loadSnapshot()
         let now = Date()
         let calendar = Calendar.current
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now.addingTimeInterval(3600)
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now.addingTimeInterval(3600)
+        let endOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfTomorrow) ?? startOfTomorrow
 
-        // Refresh at each future window boundary today, so a dose flips
-        // upcoming → due → overdue on its own without waiting for the app to write.
-        var dates: Set<Date> = [now]
+        // Refresh at each future window boundary today and tomorrow (the snapshot carries
+        // tomorrow's doses), plus midnight, so a dose flips upcoming → due → overdue and
+        // the day turns over without waiting for the app to write.
+        var dates: Set<Date> = [now, startOfTomorrow]
         for item in snapshot.items {
             for boundary in [item.scheduledAt, item.windowEnd, item.snoozedUntil].compactMap({ $0 }) {
-                if boundary > now && boundary < endOfDay { dates.insert(boundary) }
+                if boundary > now && boundary < endOfTomorrow { dates.insert(boundary) }
             }
         }
 
         let entries = dates.sorted().map { TodayEntry(date: $0, snapshot: snapshot) }
-        // After midnight the snapshot is a new day's concern — reload then (the app also
-        // rewrites the snapshot whenever it's foregrounded or a dose changes).
-        completion(Timeline(entries: entries, policy: .after(endOfDay)))
+        // Past tomorrow the snapshot has nothing more to say; the app rewrites it whenever
+        // it's foregrounded or a dose changes.
+        completion(Timeline(entries: entries, policy: .after(endOfTomorrow)))
     }
 
     static func loadSnapshot() -> TodayWidgetSnapshot {

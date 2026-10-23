@@ -109,15 +109,17 @@ struct RegimenEditRegressionTests {
             )
         }
 
-        // And past days should not have gained phantom new-version doses either:
-        // the only surviving pre-edit row is the taken one.
+        // And past days (and today, whose one dose was already taken) should not have
+        // gained phantom new-version doses. The old version's untouched past rows are
+        // the record of missed doses and are kept on purpose (AdherenceStats counts
+        // them); only v2 rows before tomorrow would be phantoms.
         let pastAndToday = medication.scheduledDoses.filter { $0.scheduledAt < startOfTomorrow }
         let takenCount = pastAndToday.filter { $0.lastAction == .taken }.count
         #expect(takenCount == 1)
-        let untouchedPast = pastAndToday.filter { $0.lastAction != .taken }
+        let phantoms = pastAndToday.filter { $0.lastAction != .taken && $0.regimenVersion == 2 }
         #expect(
-            untouchedPast.count <= 1,
-            "Past days should not accumulate phantom doses from the new version: \(untouchedPast.map { "\($0.timingLabel) v\($0.regimenVersion) at \($0.scheduledAt)" })"
+            phantoms.isEmpty,
+            "Past days should not accumulate phantom doses from the new version: \(phantoms.map { "\($0.timingLabel) v\($0.regimenVersion) at \($0.scheduledAt)" })"
         )
     }
 

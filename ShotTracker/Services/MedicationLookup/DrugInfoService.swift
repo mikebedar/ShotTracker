@@ -12,7 +12,7 @@ enum DrugInfoService {
     static func fetchLabel(
         rxcui: String?,
         genericName: String,
-        urlSession: URLSession = .shared
+        urlSession: URLSession = LaunchOptions.urlSession
     ) async -> DrugLabelInfo? {
         if let rxcui, let byRxcui = await fetch(search: "openfda.rxcui:\"\(rxcui)\"", urlSession: urlSession) {
             return byRxcui

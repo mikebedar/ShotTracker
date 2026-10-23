@@ -16,12 +16,21 @@ struct MedicationScheduledDosesView: View {
     }
 
     private var upcomingDoses: [ScheduledDose] {
-        medication.scheduledDoses
+        let superseded = DoseSupersession.supersededIDs(for: medication, now: .now)
+        return medication.scheduledDoses
             .filter {
+                guard !superseded.contains($0.id) else { return false }
                 let status = dependencies.statusEvaluator.effectiveStatus(for: $0)
                 return status == .upcoming || status == .due || status == .overdue || status == .snoozed
             }
             .sorted { $0.scheduledAt < $1.scheduledAt }
+    }
+
+    /// Actions belong to what can be taken now — anything due/overdue/snoozed, plus the
+    /// next upcoming dose (an early dose is allowed). The other ~90 days of the list are
+    /// a preview; offering Take/Skip on a dose two months out invited mistakes.
+    private func isActionable(_ dose: ScheduledDose, status: DoseStatus, firstUpcomingID: UUID?) -> Bool {
+        status != .upcoming || dose.id == firstUpcomingID
     }
 
     var body: some View {
@@ -33,11 +42,14 @@ struct MedicationScheduledDosesView: View {
                     description: Text("Upcoming doses for this medication will appear here.")
                 )
             } else {
+                let firstUpcomingID = upcomingDoses.first {
+                    dependencies.statusEvaluator.effectiveStatus(for: $0) == .upcoming
+                }?.id
                 ForEach(upcomingDoses) { dose in
                     let status = dependencies.statusEvaluator.effectiveStatus(for: dose)
                     VStack(alignment: .leading, spacing: 10) {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("\(dose.timingLabel.replacingOccurrences(of: "-", with: " ").capitalized) • \(dose.scheduledAt.formatted(date: .abbreviated, time: .shortened))")
+                            Text("\(dose.slotTitle) • \(dose.scheduledAt.formatted(date: .abbreviated, time: .shortened))")
                                 .font(.headline)
                             Text(status.title)
                                 .font(.subheadline)
@@ -51,13 +63,17 @@ struct MedicationScheduledDosesView: View {
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier(AccessibilityID.scheduledDoseRow(dose.id))
 
-                        DoseActionBar(
-                            doseID: dose.id,
-                            status: status,
-                            onTake: { takeDose(dose) },
-                            onSnooze: { dependencies.recordDoseAction(.snoozed, dose: dose, context: modelContext) },
-                            onSkip: { dependencies.recordDoseAction(.skipped, dose: dose, context: modelContext) }
-                        )
+                        if isActionable(dose, status: status, firstUpcomingID: firstUpcomingID) {
+                            DoseActionBar(
+                                doseID: dose.id,
+                                status: status,
+                                onTake: { takeDose(dose) },
+                                onSnooze: DoseActions.canSnooze(dose, status: status)
+                                    ? { dependencies.recordDoseAction(.snoozed, dose: dose, context: modelContext) }
+                                    : nil,
+                                onSkip: { dependencies.recordDoseAction(.skipped, dose: dose, context: modelContext) }
+                            )
+                        }
                     }
                 }
             }

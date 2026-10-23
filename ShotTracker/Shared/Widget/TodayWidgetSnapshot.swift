@@ -53,10 +53,33 @@ struct TodayWidgetSnapshot: Codable {
     var items: [WidgetDoseItem]
 
     static let empty = TodayWidgetSnapshot(generatedAt: .distantPast, showMedicationNames: true, items: [])
+
+    /// The items that belong on the widget at `date`: nothing from a later day, nothing
+    /// resolved, and no missed dose from an earlier day that a later dose of the same
+    /// medication has replaced (mirrors `DoseSupersession` in the app).
+    func items(relevantAt date: Date, calendar: Calendar = .current) -> [WidgetDoseItem] {
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? date
+        var latestStarted: [String: Date] = [:]
+        for item in items where item.scheduledAt <= date {
+            guard let id = item.medicationID else { continue }
+            latestStarted[id] = max(latestStarted[id] ?? .distantPast, item.scheduledAt)
+        }
+        return items.filter { item in
+            guard item.scheduledAt < endOfDay, !item.resolvedStatus(now: date).isResolved else { return false }
+            if item.scheduledAt < startOfDay, let id = item.medicationID, let latest = latestStarted[id], latest > item.scheduledAt {
+                return false
+            }
+            return true
+        }
+    }
 }
 
 struct WidgetDoseItem: Codable, Identifiable {
     var occurrenceKey: String
+    /// Groups a medication's items (an earlier missed dose is hidden once a later one of
+    /// the same medication comes due). Optional so older snapshots still decode.
+    var medicationID: String? = nil
     var displayName: String
     /// SF Symbol for the medication kind (used in discreet mode instead of the name/initial).
     var kindSymbol: String

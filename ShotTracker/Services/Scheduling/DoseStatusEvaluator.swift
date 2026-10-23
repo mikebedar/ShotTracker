@@ -41,3 +41,19 @@ final class DoseStatusEvaluator {
         return "\(medicationName), \(status.title), scheduled \(time)"
     }
 }
+
+/// Which actions a dose offers right now — shared by Today, a medication's scheduled
+/// list and the notification categories so they never disagree.
+enum DoseActions {
+    /// Snooze only means something once a dose is due: snoozing an upcoming dose would
+    /// make the snooze end its new window start, pulling the dose *earlier*. A
+    /// medication whose reminder policy turns snooze off never offers it.
+    static func canSnooze(_ dose: ScheduledDose, status: DoseStatus) -> Bool {
+        guard status == .due || status == .overdue || status == .snoozed else { return false }
+        return allowsSnooze(dose.medication)
+    }
+
+    static func allowsSnooze(_ medication: Medication?) -> Bool {
+        medication?.regimens.active?.activeReminderPolicy?.allowSnooze ?? true
+    }
+}

@@ -28,6 +28,13 @@ enum MedicationRepository {
 
         let resolvedStatuses: Set<DoseStatus> = [.takenOnTime, .takenLate, .skipped]
         for dose in medication.scheduledDoses where !resolvedStatuses.contains(dose.status) {
+            // `ScheduledDose.events` cascades, so a snoozed or undone dose would take its
+            // logged events with it. Detach them first: they stay in History (linked to
+            // the medication), just without the scheduled-dose context.
+            for event in dose.events {
+                event.scheduledDose = nil
+            }
+            dose.events.removeAll()
             context.delete(dose)
         }
 
