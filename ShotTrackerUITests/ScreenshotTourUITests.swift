@@ -110,4 +110,76 @@ final class ScreenshotTourUITests: XCTestCase {
         app.swipeUp()
         shot("16-settings-bottom")
     }
+
+    /// The screens the 2026-10-23 decisions changed, with the device in Paris over demo
+    /// schedules written in New York, and a snooze on Metformin.
+    @MainActor
+    func testDecisionsTour() throws {
+        let app = XCUIApplication.launchedForTesting(seedDemoData: true, twoZones: true)
+        let suffix = ProcessInfo.processInfo.environment["SCREENSHOT_SUFFIX"] ?? ""
+        func shot(_ name: String) { shoot(app, name + suffix) }
+
+        XCTAssertTrue(app.tab("tab.today").waitForExistence(timeout: 15))
+        sleep(1)
+        shot("d01-today-two-zones")
+        app.swipeUp()
+        shot("d02-today-two-zones-more")
+        for _ in 0..<4 { app.swipeDown() }
+
+        let snooze = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'button.snoozeDose.'")).firstMatch
+        if app.scrollUntilHittable(snooze) {
+            snooze.tap()
+            sleep(3)  // let the toast go
+            for _ in 0..<4 { app.swipeDown() }
+            let footer = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Snoozed 20 min'")).firstMatch
+            _ = app.scrollUntilHittable(footer)
+            shot("d03-today-snoozed")
+        }
+
+        app.segmentedControls["button.todayViewModeSwitcher"].buttons["Calendar"].tap()
+        sleep(1)
+        shot("d04-calendar-two-zones")
+        app.segmentedControls["button.todayViewModeSwitcher"].buttons["List"].tap()
+
+        app.tab("tab.medications").tap()
+        sleep(1)
+        shot("d05-medications-two-zones")
+        app.staticTexts["Metformin"].firstMatch.tap()
+        sleep(1)
+        shot("d06-detail-home-zone")
+        let scheduled = app.staticTexts["Scheduled doses"].firstMatch
+        _ = app.scrollUntilHittable(scheduled)
+        scheduled.tap()
+        sleep(1)
+        shot("d07-scheduled-snoozed")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let history = app.staticTexts["History"].firstMatch
+        _ = app.scrollUntilHittable(history)
+        history.tap()
+        sleep(1)
+        shot("d08-medication-history-snoozed")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        app.buttons["Edit"].tap()
+        let zoneRow = app.descendants(matching: .any).matching(identifier: "row.homeTimeZone").firstMatch
+        _ = app.scrollUntilHittable(zoneRow)
+        shot("d09-edit-home-zone")
+        zoneRow.tap()
+        sleep(1)
+        shot("d10-time-zone-picker")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["Cancel"].tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        app.tab("tab.history").tap()
+        sleep(1)
+        shot("d11-history-snoozed")
+
+        app.tab("tab.settings").tap()
+        let zones = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Paris (Central European Time)'")).firstMatch
+        _ = app.scrollUntilHittable(zones)
+        app.swipeUp()
+        sleep(1)
+        shot("d12-settings-time-zones")
+    }
 }

@@ -3,7 +3,9 @@ import XCTest
 extension XCUIApplication {
     /// A fresh, deterministic launch: in-memory store, throwaway preferences (so Today
     /// starts in list mode), stubbed RxTerms/openFDA, and optionally the demo data set.
-    static func launchedForTesting(seedDemoData: Bool = false) -> XCUIApplication {
+    /// `twoZones` runs the device in Paris over demo schedules written in New York
+    /// (`-deviceTimeZone`, `-demoHomeTimeZone`), for the "home · here" display.
+    static func launchedForTesting(seedDemoData: Bool = false, twoZones: Bool = false) -> XCUIApplication {
         // A previous run can leave the simulator in landscape, where the tab bar isn't a
         // tab bar any more.
         XCUIDevice.shared.orientation = .portrait
@@ -11,6 +13,9 @@ extension XCUIApplication {
         app.launchArguments = ["-uiTesting", "-uiTestStubNetwork"]
         if seedDemoData {
             app.launchArguments.append("-seedDemoData")
+        }
+        if twoZones {
+            app.launchArguments += ["-deviceTimeZone", "Europe/Paris", "-demoHomeTimeZone", "America/New_York"]
         }
         app.launch()
         return app
