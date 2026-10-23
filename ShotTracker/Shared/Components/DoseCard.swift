@@ -128,6 +128,10 @@ struct DoseCard: View {
                 Button("Undo", action: onUndo)
                     .font(Theme.Font.text(.footnote).weight(.bold))
                     .foregroundStyle(Theme.Color.accentStrong)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                    .accessibilityIdentifier(AccessibilityID.undoDoseButton(dose.id))
+                    .accessibilityHint("Reverts this dose to not logged.")
             }
         }
     }

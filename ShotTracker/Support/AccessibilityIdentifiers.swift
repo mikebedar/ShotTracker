@@ -35,6 +35,10 @@ enum AccessibilityID {
         "button.snoozeDose.\(id.uuidString)"
     }
 
+    static func undoDoseButton(_ id: UUID) -> String {
+        "button.undoDose.\(id.uuidString)"
+    }
+
     static func skipDoseButton(_ id: UUID) -> String {
         "button.skipDose.\(id.uuidString)"
     }

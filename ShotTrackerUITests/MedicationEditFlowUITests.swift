@@ -12,11 +12,9 @@ final class MedicationEditFlowUITests: XCTestCase {
 
     @MainActor
     func testCanEditMissedDosePolicyAfterAdding() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = XCUIApplication.launchedForTesting()
 
-        // Tab bar identifiers sit on each tab's content view, not the button — query by label.
-        app.buttons["Medications"].tap()
+        app.tab("tab.medications").tap()
         app.buttons["button.addMedication"].tap()
         app.segmentedControls["button.addMedicationModeSwitcher"].buttons["Manual"].tap()
 

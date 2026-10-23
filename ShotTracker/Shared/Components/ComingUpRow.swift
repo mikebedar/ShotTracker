@@ -28,7 +28,8 @@ struct ComingUpRow: View {
 
             Spacer(minLength: Theme.Spacing.s3)
 
-            Text(dose.scheduledAt.formatted(date: .abbreviated, time: .shortened))
+            // The group header already names the day.
+            Text(dose.scheduledAt.formatted(date: .omitted, time: .shortened))
                 .font(Theme.Font.text(.footnote).weight(.semibold))
                 .foregroundStyle(Theme.Color.textSecondary)
         }

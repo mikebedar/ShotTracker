@@ -73,6 +73,16 @@ struct MedicationHistoryView: View {
                         description: Text("Dose actions will appear here after you log them.")
                     )
                 } else {
+                    // Filter chips live in the list: as a top safe-area inset they covered
+                    // the navigation title, so the tab showed no "History" heading.
+                    if medicationsWithHistory.count > 1 {
+                        Section {
+                            filterChips
+                                .listRowInsets(EdgeInsets())
+                                .listRowBackground(Color.clear)
+                        }
+                    }
+
                     if adherence.adherencePercent != nil {
                         Section {
                             adherenceCard
@@ -103,11 +113,6 @@ struct MedicationHistoryView: View {
                     }
                 }
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if medicationsWithHistory.count > 1 {
-                    filterChips
-                }
-            }
         }
     }
 
@@ -126,10 +131,8 @@ struct MedicationHistoryView: View {
                     }
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, Theme.Spacing.s2)
+            .padding(.vertical, Theme.Spacing.s1)
         }
-        .background(.bar)
     }
 
     private var adherenceCard: some View {

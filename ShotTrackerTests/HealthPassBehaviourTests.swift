@@ -61,6 +61,12 @@ struct HealthPassBehaviourTests {
         #expect(AppFormatting.scheduleText(for: regimen).contains("Tuesday"))
     }
 
+    @Test func supplyUnitsAgreeWithTheCount() {
+        #expect(SupplyRow.unit("doses", count: 1) == "dose")
+        #expect(SupplyRow.unit("tablets", count: 2) == "tablets")
+        #expect(SupplyRow.unit("ml", count: 1) == "ml")
+    }
+
     // MARK: Today
 
     private func dose(_ medication: Medication, at start: Date, end: Date) -> ScheduledDose {
@@ -234,10 +240,14 @@ struct HealthPassBehaviourTests {
         let snapshot = TodayWidgetSnapshot(generatedAt: T.date(2026, 7, 13, 9), showMedicationNames: true, items: [today, tomorrow])
 
         #expect(snapshot.items(relevantAt: T.date(2026, 7, 13, 9), calendar: calendar).map(\.occurrenceKey) == ["today"])
-        // Just after midnight yesterday's missed dose is still the latest started one…
-        #expect(snapshot.items(relevantAt: T.date(2026, 7, 14, 0, 30), calendar: calendar).map(\.occurrenceKey) == ["today", "tomorrow"])
-        // …until the new day's dose opens.
+        // After midnight the new day's dose replaces yesterday's miss.
+        #expect(snapshot.items(relevantAt: T.date(2026, 7, 14, 0, 30), calendar: calendar).map(\.occurrenceKey) == ["tomorrow"])
         #expect(snapshot.items(relevantAt: T.date(2026, 7, 14, 7), calendar: calendar).map(\.occurrenceKey) == ["tomorrow"])
+
+        // A medication with nothing today keeps yesterday's miss on the widget.
+        let weekly = item("weekly", medication: "B", start: T.date(2026, 7, 13, 6), end: T.date(2026, 7, 13, 12))
+        let weeklySnapshot = TodayWidgetSnapshot(generatedAt: T.date(2026, 7, 13, 9), showMedicationNames: true, items: [weekly])
+        #expect(weeklySnapshot.items(relevantAt: T.date(2026, 7, 14, 9), calendar: calendar).map(\.occurrenceKey) == ["weekly"])
     }
 
     @Test func widgetSnapshotCarriesTomorrow() throws {

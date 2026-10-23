@@ -118,14 +118,17 @@ enum TodayBucketing {
 }
 
 /// Which unresolved doses a later dose of the same medication has replaced. A dose from
-/// an earlier day is superseded once another dose of that medication has opened its
-/// window (`scheduledAt <= now`). Today's doses are never superseded — a missed morning
-/// dose can still be taken late in the afternoon.
+/// an earlier day is superseded once that medication has another dose scheduled today
+/// (a new day's dose replaces yesterday's miss — taking both a few hours apart is the
+/// double dose a "keep to schedule" med warns against). A weekly med missed yesterday,
+/// whose next dose is days away, stays overdue. Today's doses are never superseded — a
+/// missed morning dose can still be taken late in the afternoon.
 enum DoseSupersession {
     static func supersededIDs(in doses: [ScheduledDose], now: Date, calendar: Calendar = .current) -> Set<UUID> {
         let startOfToday = calendar.startOfDay(for: now)
+        let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday) ?? now
         var latestStartedByMedication: [UUID: Date] = [:]
-        for dose in doses where dose.scheduledAt <= now {
+        for dose in doses where dose.scheduledAt < endOfToday {
             guard let medicationID = dose.medication?.id else { continue }
             latestStartedByMedication[medicationID] = max(latestStartedByMedication[medicationID] ?? .distantPast, dose.scheduledAt)
         }

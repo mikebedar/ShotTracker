@@ -34,6 +34,8 @@ struct ShotTrackerApp: App {
         WindowGroup {
             ContentView()
                 .environment(\.appDependencies, dependencies)
+                // UI tests get a throwaway suite for @AppStorage too (Today's list/calendar mode).
+                .defaultAppStorage(LaunchOptions.defaults)
         }
         .modelContainer(sharedModelContainer)
     }

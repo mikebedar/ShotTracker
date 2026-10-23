@@ -10,28 +10,31 @@ struct AppRootView: View {
     @State private var selectedTab: AppTab = .today
 
     var body: some View {
-        // `Tab` (not `.tabItem`) so each identifier lands on the tab bar button itself;
-        // `.accessibilityIdentifier` on a `.tabItem` view tagged the tab's *content*.
+        // Tab bar buttons can't carry our identifiers: on iOS 27 the floating tab bar's
+        // buttons report their SF Symbol name as the identifier, and neither
+        // `.accessibilityIdentifier` on a `Tab` nor on the `UITabBarItem` changes that
+        // (tried both, 2026-10-23). The identifiers below tag each tab's content; UI tests
+        // find tab buttons by title (`XCUIApplication.tab(_:)`).
         TabView(selection: $selectedTab) {
             Tab("Today", systemImage: "calendar", value: AppTab.today) {
                 TodayView()
+                    .accessibilityIdentifier(AccessibilityID.todayTab)
             }
-            .accessibilityIdentifier(AccessibilityID.todayTab)
 
             Tab("Medications", systemImage: "pills", value: AppTab.medications) {
                 MedicationListView()
+                    .accessibilityIdentifier(AccessibilityID.medicationsTab)
             }
-            .accessibilityIdentifier(AccessibilityID.medicationsTab)
 
             Tab("History", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90", value: AppTab.history) {
                 MedicationHistoryView()
+                    .accessibilityIdentifier(AccessibilityID.historyTab)
             }
-            .accessibilityIdentifier(AccessibilityID.historyTab)
 
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
                 SettingsView()
+                    .accessibilityIdentifier(AccessibilityID.settingsTab)
             }
-            .accessibilityIdentifier(AccessibilityID.settingsTab)
         }
         .task {
             await dependencies.bootstrapIfNeeded(context: modelContext)

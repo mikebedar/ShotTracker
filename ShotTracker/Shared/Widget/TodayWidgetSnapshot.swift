@@ -61,7 +61,7 @@ struct TodayWidgetSnapshot: Codable {
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? date
         var latestStarted: [String: Date] = [:]
-        for item in items where item.scheduledAt <= date {
+        for item in items where item.scheduledAt < endOfDay {
             guard let id = item.medicationID else { continue }
             latestStarted[id] = max(latestStarted[id] ?? .distantPast, item.scheduledAt)
         }

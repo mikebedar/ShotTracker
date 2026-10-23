@@ -1,83 +1,82 @@
 import XCTest
 
-/// End-to-end verification of the Lookup-mode add flow (search → confirm variant →
-/// save → drug info surfaces in detail) and medication deletion. Hits the real
-/// RxTerms/openFDA APIs, so it's a live-network test — not meant for a CI gate, but a
-/// direct exercise of the actual interactive path that can't be driven any other way
-/// in this environment.
+/// The Lookup-mode add flow (search → pick a strength → save → drug info in detail) and
+/// deletion, against canned RxTerms/openFDA answers (`-uiTestStubNetwork`) — deterministic
+/// and offline. It used to hit the live APIs.
 final class MedicationLookupFlowUITests: XCTestCase {
-    private let searchTerm = "furosemide"
-
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
 
     @MainActor
     func testAddMedicationViaLookupThenDelete() throws {
-        let app = XCUIApplication()
-        app.launch()
-
-        // Tab bar accessibility identifiers are applied to each tab's destination
-        // view, not the synthesized tab bar button itself, so identifier-based
-        // lookup doesn't find them — fall back to the stable label text here.
-        app.buttons["Medications"].tap()
+        let app = XCUIApplication.launchedForTesting()
+        app.tab("tab.medications").tap()
         app.buttons["button.addMedication"].tap()
 
         // Lookup mode is the default — the search field should already be visible.
         let searchField = app.textFields["field.medicationSearch"]
         XCTAssertTrue(searchField.waitForExistence(timeout: 5))
         searchField.tap()
-        searchField.typeText(searchTerm)
+        searchField.typeText("furosemide")
 
+        // The stub answers with an oral pill (two strengths) and an injectable.
         let firstResult = app.buttons.matching(identifier: "row.medicationLookupResult").firstMatch
-        XCTAssertTrue(firstResult.waitForExistence(timeout: 15), "RxTerms search should return a result for '\(searchTerm)'")
+        XCTAssertTrue(firstResult.waitForExistence(timeout: 10))
         firstResult.tap()
 
-        // A multi-variant result pushes a strength picker; a single-variant result
-        // confirms immediately. Handle both.
         let variantRow = app.buttons.matching(identifier: "row.medicationLookupVariant").firstMatch
-        if variantRow.waitForExistence(timeout: 3) {
-            variantRow.tap()
-        }
+        XCTAssertTrue(variantRow.waitForExistence(timeout: 5), "A two-strength result pushes the strength picker")
+        variantRow.tap()
 
-        let changeButton = app.buttons["Change"]
-        XCTAssertTrue(changeButton.waitForExistence(timeout: 5), "Confirmed-selection card should appear after picking a variant")
-
-        // Give the background openFDA drug-info fetch a moment to complete before
-        // saving, so the detail view has something to surface.
-        Thread.sleep(forTimeInterval: 3)
-
+        XCTAssertTrue(app.buttons["Change"].waitForExistence(timeout: 5), "Confirmed-selection card should appear after picking a variant")
         app.buttons["button.saveMedication"].tap()
 
-        let medicationRow = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", searchTerm)
-        ).firstMatch
+        let medicationRow = app.staticTexts["FUROSEMIDE"].firstMatch
         XCTAssertTrue(medicationRow.waitForExistence(timeout: 5), "Newly added medication should appear in the list")
         medicationRow.tap()
 
-        // Drug Info is conditional on whether the background fetch matched — don't
-        // hard-fail the whole flow if openFDA had no data for this exact drug today,
-        // but if the row is there, verify it actually opens and shows content.
-        let drugInfoRow = app.staticTexts["Drug Info"]
-        if drugInfoRow.waitForExistence(timeout: 2) {
-            drugInfoRow.tap()
-            XCTAssertTrue(app.navigationBars["Drug Info"].waitForExistence(timeout: 5))
-            app.navigationBars.buttons.element(boundBy: 0).tap()
-        }
+        let drugInfoRow = app.buttons["Drug Info"].firstMatch
+        XCTAssertTrue(drugInfoRow.waitForExistence(timeout: 5), "The stubbed openFDA label should surface as Drug Info")
+        drugInfoRow.tap()
+        XCTAssertTrue(app.staticTexts["Stub boxed warning."].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
 
-        // Delete the medication we just created and confirm it's gone.
         let deleteButton = app.buttons["button.deleteMedication"]
-        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollUntilHittable(deleteButton))
         deleteButton.tap()
-
         let confirmDelete = app.alerts.buttons["Delete"]
         XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5))
         confirmDelete.tap()
 
         XCTAssertTrue(app.navigationBars["Medications"].waitForExistence(timeout: 5))
-        XCTAssertFalse(
-            app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", searchTerm)).firstMatch.exists,
-            "Deleted medication should no longer appear in the list"
-        )
+        XCTAssertFalse(app.staticTexts["FUROSEMIDE"].exists, "Deleted medication should no longer appear in the list")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Archived'")).firstMatch.exists)
+    }
+
+    @MainActor
+    func testLookupExplainsNoMatchesAndOutages() throws {
+        let app = XCUIApplication.launchedForTesting()
+        app.tab("tab.medications").tap()
+        app.buttons["button.addMedication"].tap()
+
+        let searchField = app.textFields["field.medicationSearch"]
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+        searchField.tap()
+        searchField.typeText("zzz")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'No matches'")).firstMatch.waitForExistence(timeout: 5))
+
+        searchField.clearAndType("offline")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Search is unavailable'")).firstMatch.waitForExistence(timeout: 5))
+    }
+}
+
+private extension XCUIElement {
+    func clearAndType(_ text: String) {
+        tap()
+        if let current = value as? String, !current.isEmpty {
+            typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+        }
+        typeText(text)
     }
 }

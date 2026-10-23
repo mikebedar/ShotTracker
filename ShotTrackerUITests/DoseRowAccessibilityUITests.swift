@@ -16,10 +16,9 @@ final class DoseRowAccessibilityUITests: XCTestCase {
 
     @MainActor
     func testActionButtonsResolveIndependentlyPerRowWhenMultipleRowsAreVisible() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = XCUIApplication.launchedForTesting()
 
-        app.buttons["Medications"].tap()
+        app.tab("tab.medications").tap()
         app.buttons["button.addMedication"].tap()
         app.segmentedControls["button.addMedicationModeSwitcher"].buttons["Manual"].tap()
 

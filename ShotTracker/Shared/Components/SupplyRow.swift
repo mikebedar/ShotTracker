@@ -24,9 +24,15 @@ struct SupplyRow: View {
 
     private var summaryText: String {
         if hasMultipleContainers {
-            return "\(currentContainerRemaining) in current \(containerNoun) · \(totalRemaining) \(unitLabel) total"
+            return "\(currentContainerRemaining) in current \(containerNoun) · \(totalRemaining) \(Self.unit(unitLabel, count: totalRemaining)) total"
         }
-        return "\(totalRemaining) \(unitLabel) left"
+        return "\(totalRemaining) \(Self.unit(unitLabel, count: totalRemaining)) left"
+    }
+
+    /// "1 dose left", not "1 doses left": the stored label is the plural.
+    static func unit(_ label: String, count: Int) -> String {
+        guard count == 1, label.count > 1, label.lowercased().hasSuffix("s") else { return label }
+        return String(label.dropLast())
     }
 
     var body: some View {

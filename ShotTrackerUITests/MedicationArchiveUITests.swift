@@ -12,12 +12,9 @@ final class MedicationArchiveUITests: XCTestCase {
 
     @MainActor
     func testArchivedMedicationKeepsHistoryButLeavesActiveList() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = XCUIApplication.launchedForTesting()
 
-        // Tab bar identifiers are on each tab's content view, not the tab bar button
-        // itself — see AppRootView.swift — so query by label here.
-        app.buttons["Medications"].tap()
+        app.tab("tab.medications").tap()
         app.buttons["button.addMedication"].tap()
 
         // Switch to Manual mode to avoid any live-network dependency in this test.
@@ -57,7 +54,7 @@ final class MedicationArchiveUITests: XCTestCase {
         )
 
         // Still present in History.
-        app.buttons["History"].tap()
+        app.tab("tab.history").tap()
         let historyEntry = app.staticTexts[medicationName]
         XCTAssertTrue(historyEntry.waitForExistence(timeout: 5), "Archived medication's dose history should still appear in History")
     }
