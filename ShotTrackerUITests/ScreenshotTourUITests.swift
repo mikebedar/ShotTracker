@@ -54,14 +54,20 @@ final class ScreenshotTourUITests: XCTestCase {
         app.tab("tab.medications").tap()
         sleep(1)
         shot("05-medications")
-        app.staticTexts["Metformin"].firstMatch.tap()
+        let metformin = app.staticTexts["Metformin"].firstMatch
+        _ = app.scrollUntilHittable(metformin)
+        metformin.tap()
         sleep(1)
         shot("06-medication-detail")
-        app.staticTexts["Scheduled doses"].firstMatch.tap()
+        let scheduled = app.staticTexts["Scheduled doses"].firstMatch
+        _ = app.scrollUntilHittable(scheduled)
+        scheduled.tap()
         sleep(1)
         shot("07-scheduled-doses")
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.staticTexts["History"].firstMatch.tap()
+        let history = app.staticTexts["History"].firstMatch
+        _ = app.scrollUntilHittable(history)
+        history.tap()
         sleep(1)
         shot("08-medication-history")
         app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -76,7 +82,9 @@ final class ScreenshotTourUITests: XCTestCase {
         app.buttons["Cancel"].tap()
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
-        app.staticTexts["Prednisone"].firstMatch.tap()
+        let prednisone = app.staticTexts["Prednisone"].firstMatch
+        _ = app.scrollUntilHittable(prednisone)
+        prednisone.tap()
         sleep(1)
         shot("12-phased-detail")
         app.navigationBars.buttons.element(boundBy: 0).tap()

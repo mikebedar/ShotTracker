@@ -11,7 +11,7 @@ struct SimpleDoseRow: View {
     var isForecasted: Bool = false
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.s3) {
+        AdaptiveStack {
             if let medication {
                 MedicationArtworkView(medication: medication, size: 36)
             }
@@ -30,7 +30,7 @@ struct SimpleDoseRow: View {
                 .foregroundStyle(Theme.Color.textSecondary)
             }
 
-            Spacer(minLength: Theme.Spacing.s3)
+            Spacer(minLength: 0)
 
             StatusPill(status: status, style: .compact)
         }

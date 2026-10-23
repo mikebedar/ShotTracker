@@ -136,7 +136,7 @@ struct MedicationHistoryView: View {
     }
 
     private var adherenceCard: some View {
-        HStack(spacing: Theme.Spacing.s4) {
+        AdaptiveStack(spacing: Theme.Spacing.s4) {
             statTile(
                 value: adherence.adherencePercent.map { "\($0)%" } ?? "—",
                 label: "30-day adherence",

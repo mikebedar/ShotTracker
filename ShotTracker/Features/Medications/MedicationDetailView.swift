@@ -28,7 +28,7 @@ struct MedicationDetailView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 12) {
+                    AdaptiveStack(spacing: 12) {
                         MedicationArtworkView(medication: medication)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(medication.displayName)

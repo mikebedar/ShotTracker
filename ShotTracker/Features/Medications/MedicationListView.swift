@@ -122,7 +122,7 @@ private struct MedicationSummaryRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        AdaptiveStack(spacing: 12) {
             MedicationArtworkView(medication: medication, size: 52)
 
             VStack(alignment: .leading, spacing: 4) {

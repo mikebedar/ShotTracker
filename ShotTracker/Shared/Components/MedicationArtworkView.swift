@@ -8,11 +8,15 @@ struct MedicationArtworkView: View {
     @ScaledMetric private var sideLength: CGFloat
 
     let medication: Medication
+    private let baseSize: CGFloat
 
     init(medication: Medication, size: CGFloat = 44) {
         self.medication = medication
+        self.baseSize = size
         self._sideLength = ScaledMetric(wrappedValue: size, relativeTo: .body)
     }
+
+    private var side: CGFloat { min(sideLength, baseSize * 1.5) }
 
     private var tint: AvatarTint {
         Theme.Color.avatarTint(hueDegrees: medication.avatarHue, dark: colorScheme == .dark)
@@ -37,7 +41,10 @@ struct MedicationArtworkView: View {
                 }
             }
         }
-        .frame(width: sideLength, height: sideLength)
+        // Grow with text, but not without bound: at AX5 a 44 pt avatar became ~140 pt and
+        // squeezed the name beside it to a few letters per line.
+        .frame(width: side, height: side)
+        .dynamicTypeSize(...DynamicTypeSize.artworkScaleCap)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.avatar, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.avatar, style: .continuous)

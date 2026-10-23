@@ -10,7 +10,7 @@ struct ComingUpRow: View {
     var isForecasted: Bool = false
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.s3) {
+        AdaptiveStack {
             Image(systemName: (medication?.kind ?? .oral).symbolName)
                 .foregroundStyle(Theme.Color.textTertiary)
 
@@ -26,7 +26,7 @@ struct ComingUpRow: View {
                 }
             }
 
-            Spacer(minLength: Theme.Spacing.s3)
+            Spacer(minLength: 0)
 
             // The group header already names the day.
             Text(dose.scheduledAt.formatted(date: .omitted, time: .shortened))

@@ -57,17 +57,52 @@ struct DoseCard: View {
         .accessibilityElement(children: .contain)
     }
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    @ViewBuilder
+    private var artwork: some View {
+        if let medication {
+            MedicationArtworkView(medication: medication)
+        } else {
+            RoundedRectangle(cornerRadius: Theme.Radius.avatar, style: .continuous)
+                .fill(Theme.Color.surfaceSecondary)
+                .frame(width: 44, height: 44)
+        }
+    }
+
     @ViewBuilder
     private var header: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.s3) {
-            if let medication {
-                MedicationArtworkView(medication: medication)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                // Artwork and pill on one line, the text full width below — side by side
+                // the fixed-size pill left the name almost no room.
+                VStack(alignment: .leading, spacing: Theme.Spacing.s2) {
+                    HStack(alignment: .top) {
+                        artwork
+                        Spacer(minLength: Theme.Spacing.s2)
+                        StatusPill(status: status)
+                    }
+                    details
+                }
             } else {
-                RoundedRectangle(cornerRadius: Theme.Radius.avatar, style: .continuous)
-                    .fill(Theme.Color.surfaceSecondary)
-                    .frame(width: 44, height: 44)
+                HStack(alignment: .top, spacing: Theme.Spacing.s3) {
+                    artwork
+                    details
+                    Spacer(minLength: Theme.Spacing.s3)
+                    StatusPill(status: status)
+                }
             }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+        // Row-level identifier lives here, not on the outer card: putting it on a
+        // container that also encloses DoseActionBar's buttons causes those buttons'
+        // own identifiers to be overridden by this one in the XCUITest accessibility
+        // tree (verified via a live accessibility-hierarchy dump).
+        .accessibilityIdentifier(AccessibilityID.scheduledDoseRow(dose.id))
+    }
 
+    private var details: some View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(medicationName)
                     .font(Theme.Font.display(.headline))
@@ -93,18 +128,6 @@ struct DoseCard: View {
                         .foregroundStyle(Theme.Color.textTertiary)
                 }
             }
-
-            Spacer(minLength: Theme.Spacing.s3)
-
-            StatusPill(status: status)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
-        // Row-level identifier lives here, not on the outer card: putting it on a
-        // container that also encloses DoseActionBar's buttons causes those buttons'
-        // own identifiers to be overridden by this one in the XCUITest accessibility
-        // tree (verified via a live accessibility-hierarchy dump).
-        .accessibilityIdentifier(AccessibilityID.scheduledDoseRow(dose.id))
     }
 
     private var timingText: String {

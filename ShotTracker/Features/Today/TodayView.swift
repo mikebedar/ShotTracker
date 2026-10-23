@@ -10,6 +10,7 @@ struct TodayView: View {
         sort: [SortDescriptor(\Medication.displayName)]
     ) private var medications: [Medication]
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage("todayView.mode") private var viewModeRawValue = TodayViewMode.list.rawValue
     @State private var selectedCalendarDate = Calendar.current.startOfDay(for: .now)
     @State private var toastMessage: String?
@@ -255,50 +256,73 @@ struct TodayView: View {
         }
     }
 
+    @ViewBuilder
     private var calendarModeContent: some View {
-        VStack(spacing: 0) {
-            // No fixed height here: DoseCalendarView reports its real fitting size (via
-            // sizeThatFits) so the full month is always visible — a 6-week month needs
-            // more room than a 4-week one, and a fixed height would crop or waste space.
-            DoseCalendarView(
-                summaries: calendarSummaries,
-                selectedDate: $selectedCalendarDate
-            )
-            .padding(.horizontal)
-            .accessibilityIdentifier(AccessibilityID.todayCalendarView)
-            .layoutPriority(1)
-
-            Divider()
-
-            // This list absorbs whatever space the calendar didn't need, but never
-            // shrinks below one row + padding so it can't disappear entirely.
+        if dynamicTypeSize.isAccessibilitySize {
+            // At accessibility sizes the month alone is taller than the screen; split
+            // into a fixed calendar over a scrolling list, the VStack overflowed under the
+            // toolbar. Scroll the two together instead.
             ScrollView {
-                VStack(alignment: .leading, spacing: Theme.Spacing.s3) {
-                    Text(selectedCalendarDate.formatted(date: .complete, time: .omitted))
-                        .font(Theme.Font.display(.headline))
-
-                    if selectedDayDoses.isEmpty {
-                        Text("No scheduled doses for this day.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(selectedDayDoses) { item in
-                            SimpleDoseRow(
-                                dose: item.dose,
-                                medication: item.medication,
-                                status: item.status,
-                                isForecasted: item.isForecasted
-                            )
-                        }
-                    }
+                VStack(spacing: 0) {
+                    calendarView
+                    Divider()
+                    dayList
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(Theme.Spacing.s4)
             }
-            .frame(maxHeight: .infinity)
-            .frame(minHeight: minimumDayListHeight)
+            .background(Theme.Color.background)
+        } else {
+            VStack(spacing: 0) {
+                calendarView
+                    .layoutPriority(1)
+
+                Divider()
+
+                // This list absorbs whatever space the calendar didn't need, but never
+                // shrinks below one row + padding so it can't disappear entirely.
+                ScrollView {
+                    dayList
+                }
+                .frame(maxHeight: .infinity)
+                .frame(minHeight: minimumDayListHeight)
+            }
+            .background(Theme.Color.background)
         }
-        .background(Theme.Color.background)
+    }
+
+    private var calendarView: some View {
+        // No fixed height here: DoseCalendarView reports its real fitting size (via
+        // sizeThatFits) so the full month is always visible — a 6-week month needs
+        // more room than a 4-week one, and a fixed height would crop or waste space.
+        DoseCalendarView(
+            summaries: calendarSummaries,
+            selectedDate: $selectedCalendarDate
+        )
+        .padding(.horizontal)
+        .accessibilityIdentifier(AccessibilityID.todayCalendarView)
+    }
+
+    private var dayList: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s3) {
+            Text(selectedCalendarDate.formatted(date: .complete, time: .omitted))
+                .font(Theme.Font.display(.headline))
+
+            if selectedDayDoses.isEmpty {
+                Text("No scheduled doses for this day.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(selectedDayDoses) { item in
+                    SimpleDoseRow(
+                        dose: item.dose,
+                        medication: item.medication,
+                        status: item.status,
+                        isForecasted: item.isForecasted
+                    )
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Theme.Spacing.s4)
     }
 
     private func takeDose(_ dose: ScheduledDose) {

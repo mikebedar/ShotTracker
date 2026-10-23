@@ -22,7 +22,7 @@ struct ArchivedMedicationsView: View {
                 )
             } else {
                 ForEach(archivedMedications) { medication in
-                    HStack(spacing: 12) {
+                    AdaptiveStack(spacing: 12) {
                         MedicationArtworkView(medication: medication, size: 44)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(medication.displayName)
@@ -33,7 +33,7 @@ struct ArchivedMedicationsView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        Spacer()
+                        Spacer(minLength: 0)
                         Button("Reactivate") {
                             reactivate(medication)
                         }
