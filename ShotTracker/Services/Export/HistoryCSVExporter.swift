@@ -33,7 +33,7 @@ enum HistoryCSVExporter {
         let header = ["Date", "Time", "Medication", "Event", "Detail", "Note"]
         let lines = [header] + rows.map(\.columns)
         return lines.map { line in
-            line.map(escape).joined(separator: ",")
+            line.map { escape($0) }.joined(separator: ",")
         }.joined(separator: "\n")
     }
 

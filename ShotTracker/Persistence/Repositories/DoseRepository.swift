@@ -7,8 +7,8 @@ enum DoseRepository {
     /// range is served live via `DoseForecastService` instead of being materialized —
     /// storage never grows to cover "forever," only the window doses can actually be
     /// taken/skipped/snoozed in.
-    static let materializationLookbackDays = 7
-    static let materializationLookaheadDays = 90
+    nonisolated static let materializationLookbackDays = 7
+    nonisolated static let materializationLookaheadDays = 90
 
     static func refreshSchedules(
         in context: ModelContext,
