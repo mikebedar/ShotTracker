@@ -342,7 +342,9 @@ struct TodayView: View {
 
     private func snoozeDose(_ dose: ScheduledDose) {
         dependencies.recordDoseAction(.snoozed, dose: dose, context: modelContext)
-        toastMessage = "Snoozed \(dose.medication?.displayName ?? "dose")"
+        let name = dose.medication?.displayName ?? "dose"
+        let minutes = dose.medication?.regimens.active?.activeReminderPolicy?.defaultSnoozeMinutes ?? 20
+        toastMessage = "Snoozed \(name) \(SnoozeWording.duration(minutes: minutes))"
     }
 
     private func skipDose(_ dose: ScheduledDose) {
@@ -351,8 +353,10 @@ struct TodayView: View {
     }
 
     private func undoDose(_ dose: ScheduledDose) {
+        let wasSnooze = dose.lastAction == .snoozed
         dependencies.recordDoseAction(.pending, dose: dose, context: modelContext)
-        toastMessage = "Undid \(dose.medication?.displayName ?? "dose")"
+        let name = dose.medication?.displayName ?? "dose"
+        toastMessage = wasSnooze ? "Took back the snooze on \(name)" : "Undid \(name)"
     }
 }
 

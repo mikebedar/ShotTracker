@@ -47,11 +47,13 @@ struct MedicationScheduledDosesView: View {
                 }?.id
                 ForEach(upcomingDoses) { dose in
                     let status = dependencies.statusEvaluator.effectiveStatus(for: dose)
+                    let times = ZonedTimeFormatter(home: dose.homeTimeZone)
                     VStack(alignment: .leading, spacing: 10) {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("\(dose.slotTitle) • \(dose.scheduledAt.formatted(date: .abbreviated, time: .shortened))")
+                            Text("\(dose.slotTitle) • \(times.dateTime(dose.scheduledAt))")
                                 .font(.headline)
-                            Text(status.title)
+                                .accessibilityLabel("\(dose.slotTitle), \(dose.scheduledAt.formatted(date: .abbreviated, time: .omitted)), \(times.spokenTime(dose.scheduledAt))")
+                            Text(statusLine(for: dose, status: status, times: times))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -92,6 +94,17 @@ struct MedicationScheduledDosesView: View {
         } message: { confirmation in
             Text(confirmation.message)
         }
+    }
+
+    /// "Due", or with a snooze "Snoozed 20 min · reminder at 10:20 AM" / "Due · snoozed
+    /// 20 min, take by 12:20 PM".
+    private func statusLine(for dose: ScheduledDose, status: DoseStatus, times: ZonedTimeFormatter) -> String {
+        guard dose.snoozeOffset > 0 else { return status.title }
+        let snoozed = SnoozeWording.duration(minutes: dose.snoozeOffset)
+        if status == .snoozed, let until = dose.snoozedUntil {
+            return "Snoozed \(snoozed) · reminder at \(times.time(until))"
+        }
+        return "\(status.title) · snoozed \(snoozed), take by \(times.time(dose.deadline))"
     }
 
     private func takeDose(_ dose: ScheduledDose) {

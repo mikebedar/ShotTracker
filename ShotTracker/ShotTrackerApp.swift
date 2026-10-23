@@ -25,18 +25,26 @@ struct ShotTrackerApp: App {
     }()
 
     init() {
+        // `-deviceTimeZone <id>` (Debug): pretend the device is in another zone, before
+        // anything reads the clock.
+        LaunchOptions.applyDeviceTimeZoneOverride()
         // Wire Take/Snooze/Skip notification actions before any notification can arrive.
         notificationActionHandler.modelContainer = sharedModelContainer
         UNUserNotificationCenter.current().delegate = notificationActionHandler
     }
 
     var body: some Scene {
+        let container = sharedModelContainer
         WindowGroup {
             ContentView()
                 .environment(\.appDependencies, dependencies)
                 // UI tests get a throwaway suite for @AppStorage too (Today's list/calendar mode).
                 .defaultAppStorage(LaunchOptions.defaults)
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(container)
+        // The daily re-plan (`BackgroundRefresh`); SwiftUI registers the identifier.
+        .backgroundTask(.appRefresh(BackgroundRefresh.taskIdentifier)) {
+            await BackgroundRefresh.run(container: container)
+        }
     }
 }

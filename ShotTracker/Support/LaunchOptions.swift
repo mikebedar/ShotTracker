@@ -9,17 +9,50 @@ import Foundation
 ///   (`StubURLProtocol`), so lookup tests are deterministic and never hit the network.
 /// - `-seedDemoData`: fill an empty store with `DemoData` (every regimen kind, doses in
 ///   every Today bucket, a week of history). Works with or without `-uiTesting`.
+/// - `-deviceTimeZone <identifier>`: run as if the device were in that zone
+///   (`NSTimeZone.default`), e.g. `Europe/Paris` — for the "home · here" display.
+/// - `-demoHomeTimeZone <identifier>`: the zone `DemoData`'s schedules are written in
+///   (default: the device's), e.g. `America/New_York` with `-deviceTimeZone Europe/Paris`
+///   for a two-zone Today.
 nonisolated enum LaunchOptions {
     #if DEBUG
     private static let arguments = ProcessInfo.processInfo.arguments
     static let isUITesting = arguments.contains("-uiTesting")
     static let stubsNetwork = arguments.contains("-uiTestStubNetwork")
     static let seedsDemoData = arguments.contains("-seedDemoData")
+    static let deviceTimeZone = value(after: "-deviceTimeZone").flatMap(TimeZone.init(identifier:))
+    static let demoHomeTimeZone = value(after: "-demoHomeTimeZone").flatMap(TimeZone.init(identifier:))
+
+    private static func value(after flag: String) -> String? {
+        guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
+    }
     #else
     static let isUITesting = false
     static let stubsNetwork = false
     static let seedsDemoData = false
+    static let deviceTimeZone: TimeZone? = nil
+    static let demoHomeTimeZone: TimeZone? = nil
     #endif
+
+    /// Makes `-deviceTimeZone` the process's zone. Call first thing at launch.
+    static func applyDeviceTimeZoneOverride() {
+        guard let deviceTimeZone else { return }
+        // `NSTimeZone.default` alone moves `Calendar.current` but not `TimeZone.current`
+        // or `.autoupdatingCurrent` (what formatters use) on iOS 27, so make it the
+        // process's *system* zone too: Foundation reads `TZ` first.
+        setenv("TZ", deviceTimeZone.identifier, 1)
+        tzset()
+        NSTimeZone.resetSystemTimeZone()
+        NSTimeZone.default = deviceTimeZone
+    }
+
+    /// After `NSSystemTimeZoneDidChange`: drop the cached system zone so `TimeZone.current`
+    /// reads the new one (a `-deviceTimeZone` override stays in place).
+    static func resetSystemTimeZoneUnlessOverridden() {
+        guard deviceTimeZone == nil else { return }
+        NSTimeZone.resetSystemTimeZone()
+    }
 
     /// The defaults the app's own preferences live in. UI tests get a suite that's
     /// wiped at launch, so one test's settings never leak into the next.

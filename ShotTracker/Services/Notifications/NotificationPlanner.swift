@@ -89,7 +89,8 @@ enum NotificationPlanner {
         }
 
         // Base the nudge on the reminder instant (near a window's close) rather than the
-        // window start, so a flexible dose doesn't ping the moment its window opens.
+        // window start, so a flexible dose doesn't ping the moment its window opens. A
+        // snoozed dose reminds when its snooze ends.
         let baseDate = dose.snoozedUntil ?? dose.reminderAt ?? dose.scheduledAt
         return intervals.prefix(policy.maxReminderCount).map { minutes in
             baseDate.addingTimeInterval(TimeInterval(minutes * 60))
@@ -98,12 +99,20 @@ enum NotificationPlanner {
 
     /// "Time for Metformin" / "Morning dose · take by 12:00 PM." — the old body read
     /// "Metformin is due morning." (and "is due 4:02 am." for a 9:02 dose).
-    static func content(for dose: ScheduledDose, fireDate: Date, isFollowUp: Bool) -> (title: String, body: String) {
+    ///
+    /// Times read in the dose's home time zone and, when the device is somewhere else,
+    /// in both: "take by 12:00 PM home · 6:00 PM here." A snoozed dose says so and uses
+    /// its moved deadline: "Morning dose · snoozed 20 min · take by 12:20 PM."
+    static func content(
+        for dose: ScheduledDose,
+        fireDate: Date,
+        isFollowUp: Bool,
+        localTimeZone: TimeZone = .current
+    ) -> (title: String, body: String) {
         let name = dose.medication?.displayName ?? "Medication"
-        let windowEnd = dose.snoozedUntil.map {
-            $0.addingTimeInterval(dose.windowEnd.timeIntervalSince(dose.windowStart))
-        } ?? dose.windowEnd
-        let isOverdue = fireDate > windowEnd
+        let deadline = dose.deadline
+        let isOverdue = fireDate > deadline
+        let times = ZonedTimeFormatter(home: dose.homeTimeZone, local: localTimeZone)
 
         let title: String
         if isOverdue {
@@ -114,13 +123,22 @@ enum NotificationPlanner {
             title = "Time for \(name)"
         }
 
+        let snooze = dose.snoozeOffset > 0 ? "snoozed \(SnoozeWording.duration(minutes: dose.snoozeOffset))" : nil
         var body: String
         if dose.isFlexibleWindow {
-            let end = windowEnd.formatted(date: .omitted, time: .shortened)
-            body = isOverdue ? "\(dose.slotTitle) dose was due by \(end)." : "\(dose.slotTitle) dose · take by \(end)."
+            let end = times.time(deadline)
+            if isOverdue {
+                body = "\(dose.slotTitle) dose was due by \(end)" + (snooze.map { " (\($0))" } ?? "") + "."
+            } else {
+                body = "\(dose.slotTitle) dose" + (snooze.map { " · \($0)" } ?? "") + " · take by \(end)."
+            }
         } else {
-            let time = dose.scheduledAt.formatted(date: .omitted, time: .shortened)
-            body = isOverdue ? "Dose was due at \(time)." : "Dose due at \(time)."
+            let time = times.time(dose.scheduledAt)
+            if isOverdue {
+                body = "Dose was due at \(time)" + (snooze.map { " (\($0))" } ?? "") + "."
+            } else {
+                body = "Dose due at \(time)" + (snooze.map { " · \($0)" } ?? "") + "."
+            }
         }
         if dose.medication?.takeWithFood == true {
             body += " Take with food."

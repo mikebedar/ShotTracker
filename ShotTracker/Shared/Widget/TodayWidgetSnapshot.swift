@@ -67,7 +67,8 @@ struct TodayWidgetSnapshot: Codable {
         }
         return items.filter { item in
             guard item.scheduledAt < endOfDay, !item.resolvedStatus(now: date).isResolved else { return false }
-            if item.scheduledAt < startOfDay, let id = item.medicationID, let latest = latestStarted[id], latest > item.scheduledAt {
+            if item.scheduledAt < startOfDay, item.deadline < date,
+               let id = item.medicationID, let latest = latestStarted[id], latest > item.scheduledAt {
                 return false
             }
             return true
@@ -97,8 +98,19 @@ struct WidgetDoseItem: Codable, Identifiable {
     var isSkipped: Bool
     /// `DoseStatus.rawValue` stored on the dose — used for taken-on-time vs taken-late.
     var storedStatus: String
+    /// The dose's cumulative snooze (minutes); it moves the deadline. Optional so older
+    /// snapshots decode (nil = 0).
+    var snoozeOffsetMinutes: Int? = nil
+    /// The regimen's home zone, so the widget can show "home · here" times. Optional so
+    /// older snapshots decode (nil = the device's zone, one time).
+    var homeTimeZoneIdentifier: String? = nil
 
     var id: String { occurrenceKey }
+
+    /// `windowEnd` plus the snooze offset — when the dose turns overdue.
+    var deadline: Date {
+        windowEnd.addingTimeInterval(TimeInterval(max(0, snoozeOffsetMinutes ?? 0) * 60))
+    }
 
     /// The medication's first character, uppercased — for the letter avatar. Empty → "?".
     var avatarLetter: String {
@@ -106,13 +118,20 @@ struct WidgetDoseItem: Codable, Identifiable {
             .map { String($0).uppercased() } ?? "?"
     }
 
-    /// Glanceable timing phrase: a flexible dose reads "by <window end>"; a precise dose
-    /// shows its exact time.
-    var timeText: String {
+    /// Glanceable timing phrase: a flexible dose reads "by <deadline>"; a precise dose
+    /// shows its exact time. Away from the home zone, both clocks: "by 12:00 PM home ·
+    /// 6:00 PM here".
+    var timeText: String { timeText() }
+
+    func timeText(localTimeZone: TimeZone = .current) -> String {
+        let times = ZonedTimeFormatter(
+            home: homeTimeZoneIdentifier.flatMap(TimeZone.init(identifier:)),
+            local: localTimeZone
+        )
         if isFlexibleWindow {
-            return "by " + windowEnd.formatted(date: .omitted, time: .shortened)
+            return "by " + times.time(deadline)
         }
-        return scheduledAt.formatted(date: .omitted, time: .shortened)
+        return times.time(scheduledAt)
     }
 
     /// Mirrors `DoseStatusEvaluator.effectiveStatus(for:now:)` exactly. **Keep in sync with
@@ -123,12 +142,9 @@ struct WidgetDoseItem: Codable, Identifiable {
 
         if let snoozedUntil, snoozedUntil > now { return .snoozed }
 
-        // A snooze pushes both bounds of the (possibly flexible) window forward.
-        let windowStart = snoozedUntil ?? scheduledAt
-        let resolvedEnd = snoozedUntil.map { $0.addingTimeInterval(windowEnd.timeIntervalSince(scheduledAt)) } ?? windowEnd
-
-        if now < windowStart { return .upcoming }
-        if now <= resolvedEnd { return .due }
+        // A snooze moves only the deadline, by the snoozed minutes.
+        if now < scheduledAt { return .upcoming }
+        if now <= deadline { return .due }
         return .overdue
     }
 }

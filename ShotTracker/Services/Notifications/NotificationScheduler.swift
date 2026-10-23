@@ -30,6 +30,12 @@ final class NotificationScheduler {
         await refreshAuthorizationStatus()
     }
 
+    /// What should be pending, and how many reminders it had to choose from.
+    struct Plan: Equatable {
+        var requests: [NotificationPlanner.Planned]
+        var candidateCount: Int
+    }
+
     func rescheduleAll(
         in context: ModelContext,
         preferences: AppPreferences,
@@ -38,30 +44,56 @@ final class NotificationScheduler {
     ) async {
         await refreshAuthorizationStatus()
         guard authorizationStatus == .authorized || authorizationStatus == .provisional else { return }
+        guard let plan = Self.plan(in: context, preferences: preferences, evaluator: evaluator, engine: engine, now: .now) else { return }
+        await apply(plan)
+    }
 
+    /// The budgeted plan for the store as it is: refill reminders first, then the
+    /// soonest dose reminders, at most 64. Pure apart from the fetch, so the background
+    /// refresh and tests can compute it without the notification center.
+    static func plan(
+        in context: ModelContext,
+        preferences: AppPreferences,
+        evaluator: DoseStatusEvaluator,
+        engine: DoseScheduleEngine?,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> Plan? {
         var descriptor = FetchDescriptor<ScheduledDose>(sortBy: [SortDescriptor(\.scheduledAt)])
         descriptor.includePendingChanges = true
-        guard let doses = try? context.fetch(descriptor) else { return }
+        guard let doses = try? context.fetch(descriptor) else { return nil }
 
-        let now = Date.now
         let doseReminders = NotificationPlanner.doseReminders(
-            for: doses, preferences: preferences, evaluator: evaluator, now: now
+            for: doses, preferences: preferences, evaluator: evaluator, now: now, calendar: calendar
         )
         var refillReminders: [NotificationPlanner.Planned] = []
         if let engine {
             var medicationDescriptor = FetchDescriptor<Medication>(predicate: #Predicate { $0.isActive })
             medicationDescriptor.includePendingChanges = true
             let medications = (try? context.fetch(medicationDescriptor)) ?? []
-            refillReminders = Self.refillReminders(for: medications, engine: engine, preferences: preferences, now: now)
+            refillReminders = Self.refillReminders(for: medications, engine: engine, preferences: preferences, now: now, calendar: calendar)
         }
-        let plan = NotificationPlanner.budgeted(doseReminders: doseReminders, refillReminders: refillReminders)
+        return Plan(
+            requests: NotificationPlanner.budgeted(doseReminders: doseReminders, refillReminders: refillReminders),
+            candidateCount: doseReminders.count + refillReminders.count
+        )
+    }
 
+    /// Applies a plan computed elsewhere (the background refresh), if reminders can arrive.
+    func applyIfAuthorized(_ plan: Plan) async {
+        await refreshAuthorizationStatus()
+        guard authorizationStatus == .authorized || authorizationStatus == .provisional else { return }
+        await apply(plan)
+    }
+
+    /// Replaces everything pending with `plan`.
+    private func apply(_ plan: Plan) async {
         center.removeAllPendingNotificationRequests()
-        for planned in plan {
+        for planned in plan.requests {
             try? await center.add(request(for: planned))
         }
-        lastPlannedCount = plan.count
-        lastCandidateCount = doseReminders.count + refillReminders.count
+        lastPlannedCount = plan.requests.count
+        lastCandidateCount = plan.candidateCount
     }
 
     /// How many requests the last reschedule handed to the system, and how many it had
@@ -83,12 +115,24 @@ final class NotificationScheduler {
         if let medicationID = planned.medicationID { userInfo["medicationID"] = medicationID }
         content.userInfo = userInfo
 
-        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: planned.fireDate)
         return UNNotificationRequest(
             identifier: planned.identifier,
             content: content,
-            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            trigger: Self.trigger(for: planned.fireDate)
         )
+    }
+
+    /// A calendar trigger pinned to the fire date's instant: the components carry their
+    /// time zone, so a reminder planned in New York still fires at the same moment after
+    /// the phone lands in Paris (floating components would fire at the same *wall-clock*
+    /// time in the new zone until the next re-plan).
+    static func trigger(for fireDate: Date, timeZone: TimeZone = .current) -> UNCalendarNotificationTrigger {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+        components.calendar = calendar
+        components.timeZone = timeZone
+        return UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
     }
 
     /// One reminder per supply-tracked medication, a few days ahead of its projected

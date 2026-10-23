@@ -33,6 +33,8 @@ struct DoseCard: View {
 
             if isResolved {
                 resolvedFooter
+            } else if dose.snoozeOffset > 0 {
+                snoozeFooter
             }
 
             if let medication, medication.isTrackingSupply, let unitLabel = medication.supplyUnitLabel {
@@ -130,13 +132,26 @@ struct DoseCard: View {
             }
     }
 
+    /// Home clock and, when the device is elsewhere, the local one too.
+    private var times: ZonedTimeFormatter {
+        ZonedTimeFormatter(home: dose.homeTimeZone)
+    }
+
     private var timingText: String {
+        timingText(time: times.time)
+    }
+
+    private var spokenTimingText: String {
+        timingText(time: times.spokenTime)
+    }
+
+    private func timingText(time: (Date) -> String) -> String {
         if dose.isFlexibleWindow {
-            // "Morning · anytime by 12:00 PM"
-            return "\(dose.slotTitle) · anytime by \(dose.windowEnd.formatted(date: .omitted, time: .shortened))"
+            // "Morning · anytime by 12:00 PM" (a snooze moves the deadline: "by 12:20 PM")
+            return "\(dose.slotTitle) · anytime by \(time(dose.deadline))"
         }
         // A precise dose: its slot *is* its time ("At 9:02 AM").
-        return "At \(dose.scheduledAt.formatted(date: .omitted, time: .shortened))"
+        return "At \(time(dose.scheduledAt))"
     }
 
     private var resolvedFooter: some View {
@@ -148,23 +163,59 @@ struct DoseCard: View {
             Spacer()
 
             if let onUndo {
-                Button("Undo", action: onUndo)
-                    .font(Theme.Font.text(.footnote).weight(.bold))
-                    .foregroundStyle(Theme.Color.accentStrong)
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                    .accessibilityIdentifier(AccessibilityID.undoDoseButton(dose.id))
-                    .accessibilityHint("Reverts this dose to not logged.")
+                undoButton(action: onUndo, hint: "Reverts this dose to not logged.")
             }
         }
     }
 
+    /// "Snoozed 20 min · reminder at 10:20 AM" while the snooze runs, "Snoozed 20 min"
+    /// once it has ended; Undo takes the last snooze back.
+    private var snoozeFooter: some View {
+        HStack {
+            Label(snoozeText(time: times.time), systemImage: DoseStatus.snoozed.symbolName)
+                .font(Theme.Font.text(.footnote))
+                .foregroundStyle(Theme.Color.textSecondary)
+                .accessibilityLabel(SnoozeWording.spoken(snoozeText(time: times.spokenTime)))
+
+            Spacer()
+
+            if let onUndo, dose.lastAction == .snoozed {
+                undoButton(action: onUndo, hint: "Takes back the last snooze.")
+            }
+        }
+    }
+
+    private func snoozeText(time: (Date) -> String) -> String {
+        var text = "Snoozed \(SnoozeWording.duration(minutes: dose.snoozeOffset))"
+        if status == .snoozed, let until = dose.snoozedUntil {
+            text += " · reminder at \(time(until))"
+        }
+        return text
+    }
+
+    private func undoButton(action: @escaping () -> Void, hint: String) -> some View {
+        Button("Undo", action: action)
+            .font(Theme.Font.text(.footnote).weight(.bold))
+            .foregroundStyle(Theme.Color.accentStrong)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+            .accessibilityIdentifier(AccessibilityID.undoDoseButton(dose.id))
+            .accessibilityHint(hint)
+    }
+
     private var footerText: String {
         if status == .skipped {
-            return "Skipped · \(dose.scheduledAt.formatted(date: .omitted, time: .shortened))"
+            return "Skipped · \(times.time(dose.scheduledAt))"
         }
         if let completedAt = dose.completedAt {
-            return "Logged at \(completedAt.formatted(date: .omitted, time: .shortened))"
+            var text = "Logged at \(times.time(completedAt))"
+            if dose.minutesLate > 0 {
+                text += " · \(SnoozeWording.duration(minutes: dose.minutesLate)) late"
+            }
+            if dose.snoozeOffset > 0 {
+                text += " · snoozed \(SnoozeWording.duration(minutes: dose.snoozeOffset))"
+            }
+            return text
         }
         return status.title
     }
@@ -183,7 +234,10 @@ struct DoseCard: View {
     }
 
     private var accessibilityLabel: String {
-        var parts = ["\(medicationName), \(status.title.lowercased()), \(timingText)."]
+        var parts = ["\(medicationName), \(status.title.lowercased()), \(spokenTimingText)."]
+        if !isResolved, dose.snoozeOffset > 0 {
+            parts.append("Snoozed \(SnoozeWording.duration(minutes: dose.snoozeOffset)) in all.")
+        }
         if isActionable {
             parts.append(onSnooze == nil ? "Actions: Take, Skip." : "Actions: Take, Snooze, Skip.")
         } else if isResolved, onUndo != nil {

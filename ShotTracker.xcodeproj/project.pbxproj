@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		9CF41801000000000000000B /* TodayWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF41801000000000000000A /* TodayWidgetSnapshot.swift */; };
+		9CF418010000000000000012 /* ZonedTimeFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF418010000000000000011 /* ZonedTimeFormatter.swift */; };
 		9CF41801000000000000000D /* ShotTrackerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9CF418010000000000000002 /* ShotTrackerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -55,9 +56,17 @@
 		9CF417912F8A89C100E9BDF3 /* ShotTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShotTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9CF418010000000000000002 /* ShotTrackerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShotTrackerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9CF41801000000000000000A /* TodayWidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TodayWidgetSnapshot.swift; path = ShotTracker/Shared/Widget/TodayWidgetSnapshot.swift; sourceTree = SOURCE_ROOT; };
+		9CF418010000000000000011 /* ZonedTimeFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ZonedTimeFormatter.swift; path = ShotTracker/Shared/Widget/ZonedTimeFormatter.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		9CF418010000000000000013 /* Exceptions for "ShotTracker" folder in "ShotTracker" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 9CF417772F8A89BF00E9BDF3 /* ShotTracker */;
+		};
 		9CF418010000000000000010 /* Exceptions for "ShotTrackerWidget" folder in "ShotTrackerWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -70,6 +79,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		9CF4177A2F8A89BF00E9BDF3 /* ShotTracker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				9CF418010000000000000013 /* Exceptions for "ShotTracker" folder in "ShotTracker" target */,
+			);
 			path = ShotTracker;
 			sourceTree = "<group>";
 		};
@@ -133,6 +145,7 @@
 				9CF417942F8A89C100E9BDF3 /* ShotTrackerUITests */,
 				9CF418010000000000000003 /* ShotTrackerWidget */,
 				9CF41801000000000000000A /* TodayWidgetSnapshot.swift */,
+				9CF418010000000000000011 /* ZonedTimeFormatter.swift */,
 				9CF417792F8A89BF00E9BDF3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -349,6 +362,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9CF41801000000000000000B /* TodayWidgetSnapshot.swift in Sources */,
+				9CF418010000000000000012 /* ZonedTimeFormatter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -505,6 +519,7 @@
 				DEVELOPMENT_TEAM = LMNQ9YTY2C;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShotTracker/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -538,6 +553,7 @@
 				DEVELOPMENT_TEAM = LMNQ9YTY2C;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShotTracker/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

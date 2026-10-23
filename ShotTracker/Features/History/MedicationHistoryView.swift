@@ -146,6 +146,9 @@ struct MedicationHistoryView: View {
             if let slot = adherence.mostMissedSlot {
                 statTile(value: SlotTitle.title(label: slot), label: "most missed")
             }
+            if adherence.snoozedCount > 0 {
+                statTile(value: "\(adherence.snoozedCount)", label: "taken after a snooze")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, Theme.Spacing.s2)
@@ -158,6 +161,9 @@ struct MedicationHistoryView: View {
             Text(value)
                 .font(Theme.Font.display(.title2))
                 .foregroundStyle(emphasized ? Theme.Color.accentStrong : Theme.Color.textPrimary)
+                // A time ("4:58 PM" most missed) broke mid-word in a four-tile row.
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
             Text(label)
                 .font(Theme.Font.text(.caption))
                 .foregroundStyle(Theme.Color.textSecondary)
@@ -173,6 +179,9 @@ struct MedicationHistoryView: View {
         parts.append("\(adherence.currentStreakDays) day streak")
         if let slot = adherence.mostMissedSlot {
             parts.append("most missed slot: \(SlotTitle.title(label: slot))")
+        }
+        if adherence.snoozedCount > 0 {
+            parts.append("\(adherence.snoozedCount) taken after a snooze")
         }
         return parts.joined(separator: ", ")
     }

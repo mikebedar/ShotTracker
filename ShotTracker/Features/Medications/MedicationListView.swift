@@ -134,7 +134,7 @@ private struct MedicationSummaryRow: View {
                         .foregroundStyle(.secondary)
                 }
                 if let nextDose {
-                    Text("\(statusText) • \(nextDose.scheduledAt.formatted(date: .abbreviated, time: .shortened))")
+                    Text("\(statusText) • \(ZonedTimeFormatter(home: nextDose.homeTimeZone).dateTime(nextDose.scheduledAt))")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else {
@@ -153,7 +153,8 @@ private struct MedicationSummaryRow: View {
         let name = medication.spokenName
         if let nextDose {
             let status = dependencies.statusEvaluator.effectiveStatus(for: nextDose).title
-            let time = nextDose.scheduledAt.formatted(date: .abbreviated, time: .shortened)
+            let times = ZonedTimeFormatter(home: nextDose.homeTimeZone)
+            let time = "\(nextDose.scheduledAt.formatted(date: .abbreviated, time: .omitted)), \(times.spokenTime(nextDose.scheduledAt))"
             return "\(name). \(status). Next dose \(time)."
         }
         return "\(name). No upcoming doses."

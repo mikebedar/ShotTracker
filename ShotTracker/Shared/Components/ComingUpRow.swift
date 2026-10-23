@@ -29,13 +29,20 @@ struct ComingUpRow: View {
             Spacer(minLength: 0)
 
             // The group header already names the day.
-            Text(dose.scheduledAt.formatted(date: .omitted, time: .shortened))
+            Text(times.time(dose.scheduledAt))
                 .font(Theme.Font.text(.footnote).weight(.semibold))
                 .foregroundStyle(Theme.Color.textSecondary)
+                .multilineTextAlignment(.trailing)
+                .accessibilityLabel(times.spokenTime(dose.scheduledAt))
         }
         .padding(.vertical, Theme.Spacing.s2)
         .opacity(isForecasted ? 0.65 : 1)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(AccessibilityID.scheduledDoseRow(dose.id))
+    }
+
+    /// Home clock, plus the local one when the device is in another zone.
+    private var times: ZonedTimeFormatter {
+        ZonedTimeFormatter(home: medication?.homeTimeZone(forVersion: dose.regimenVersion))
     }
 }

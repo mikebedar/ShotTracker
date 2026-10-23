@@ -94,7 +94,9 @@ enum WidgetSnapshotWriter {
             snoozedUntil: dose.snoozedUntil,
             isTaken: dose.lastAction == .taken,
             isSkipped: dose.lastAction == .skipped,
-            storedStatus: dose.status.rawValue
+            storedStatus: dose.status.rawValue,
+            snoozeOffsetMinutes: dose.snoozeOffset > 0 ? dose.snoozeOffset : nil,
+            homeTimeZoneIdentifier: dose.homeTimeZone?.identifier
         )
     }
 }

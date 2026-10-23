@@ -309,12 +309,14 @@ extension TimingAnchorKind {
 /// identifier, not display text — never `.capitalized` it in a view.
 enum SlotTitle {
     /// "Morning", "Before bed", or the dose's time for a precise (exact-time) dose.
-    static func title(label: String, scheduledAt: Date, isWindow: Bool) -> String {
+    static func title(label: String, scheduledAt: Date, isWindow: Bool, timeZone: TimeZone? = nil) -> String {
         if let kind = TimingAnchorKind(slotLabel: label) {
             return kind.title
         }
         if !isWindow {
-            return scheduledAt.formatted(date: .omitted, time: .shortened)
+            var style = Date.FormatStyle(date: .omitted, time: .shortened)
+            style.timeZone = timeZone ?? .autoupdatingCurrent
+            return scheduledAt.formatted(style)
         }
         let words = label.replacingOccurrences(of: "-", with: " ")
         return words.prefix(1).uppercased() + words.dropFirst()
@@ -527,6 +529,13 @@ final class Medication {
             .max { ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast) }
     }
 
+    /// The time zone a regimen version's times are written in (its "home" zone) — the
+    /// given version's, else the active regimen's. nil without a regimen.
+    func homeTimeZone(forVersion version: Int? = nil) -> TimeZone? {
+        let regimen = version.flatMap { version in regimens.first { $0.version == version } } ?? regimens.active
+        return regimen?.homeTimeZone
+    }
+
     /// Draw down one unit from the open container, dropping it when it empties so the
     /// next becomes current. No-op when not tracking or already empty.
     func consumeOneUnit() {
@@ -616,6 +625,13 @@ final class MedicationRegimen {
 
     var activeReminderPolicy: ReminderPolicy? {
         reminderPolicies.sorted(by: { $0.createdAt > $1.createdAt }).first
+    }
+
+    /// The zone this version's clock times live in (`timeZoneIdentifier`): set from the
+    /// device when the schedule is created, kept when the user travels, changed only by
+    /// an edit (which creates a new version).
+    var homeTimeZone: TimeZone {
+        TimeZone(identifier: timeZoneIdentifier) ?? .current
     }
 
     var missedDosePolicy: MissedDosePolicy {
@@ -751,6 +767,11 @@ final class ScheduledDose {
     /// regimen versions and key changes, so a refresh can recognise "today's morning dose"
     /// even after its key changed. nil on rows written before this existed.
     var timingID: UUID?
+    /// Total minutes this dose has been snoozed (every snooze adds its length; undoing a
+    /// snooze takes its minutes back off). The deadline moves by this much — nothing else
+    /// does: on time vs late is still judged against the original window. nil on rows
+    /// written before snoozes were tracked = 0.
+    var snoozeOffsetMinutes: Int?
 
     var medication: Medication?
 
@@ -814,9 +835,34 @@ final class ScheduledDose {
     /// True when this dose spans a real range rather than a single instant + grace.
     var isFlexibleWindow: Bool { windowEndAt != nil }
 
-    /// "Morning", "Before bed", or "9:02 AM" — see `SlotTitle`.
+    /// Cumulative snooze, in minutes (0 when never snoozed or on pre-tracking rows).
+    var snoozeOffset: Int { max(0, snoozeOffsetMinutes ?? 0) }
+
+    /// When the dose turns overdue: the original window end plus the snooze offset. A
+    /// snooze used to move both window bounds to the snooze end, so a morning dose snoozed
+    /// at 10:00 stayed "on time" until ~16:20; now only this dose's deadline moves, by
+    /// exactly the snoozed minutes.
+    var deadline: Date {
+        windowEnd.addingTimeInterval(TimeInterval(snoozeOffset * 60))
+    }
+
+    /// Minutes past the original window end a taken dose was logged (0 when on time).
+    var minutesLate: Int {
+        guard let completedAt, lastAction == .taken else { return 0 }
+        return max(0, Int((completedAt.timeIntervalSince(windowEnd) / 60).rounded(.up)))
+    }
+
+    /// "Morning", "Before bed", or "9:02 AM" — see `SlotTitle`. A precise dose's time
+    /// reads on its home clock (the time the user scheduled).
     var slotTitle: String {
-        SlotTitle.title(label: timingLabel, scheduledAt: scheduledAt, isWindow: isFlexibleWindow)
+        SlotTitle.title(label: timingLabel, scheduledAt: scheduledAt, isWindow: isFlexibleWindow, timeZone: homeTimeZone)
+    }
+
+    /// The home zone of the regimen version that generated this dose. nil for a
+    /// transient (forecast) dose, which has no medication attached — callers that have
+    /// the medication use `Medication.homeTimeZone(forVersion:)`.
+    var homeTimeZone: TimeZone? {
+        medication?.homeTimeZone(forVersion: regimenVersion)
     }
 
     /// Never acted on: no completion and no logged events. Only untouched rows are ever
@@ -830,6 +876,15 @@ final class DoseEvent {
     var loggedAt: Date
     var actionRaw: String
     var note: String
+    /// For a snooze: the minutes this snooze added. nil for other actions and old rows.
+    var snoozeMinutes: Int?
+    /// The dose's cumulative snooze offset once this event applied — so history and the
+    /// CSV can say "taken 45 min late · snoozed 30 min" even after the dose row changes
+    /// or is gone. nil on old rows = 0.
+    var snoozeOffsetMinutes: Int?
+    /// For a taken dose: minutes past the original window end (0 = on time). nil for other
+    /// actions and old rows.
+    var minutesLate: Int?
 
     var medication: Medication?
     var scheduledDose: ScheduledDose?
@@ -839,6 +894,9 @@ final class DoseEvent {
         loggedAt: Date = .now,
         action: DoseActionType,
         note: String = "",
+        snoozeMinutes: Int? = nil,
+        snoozeOffsetMinutes: Int? = nil,
+        minutesLate: Int? = nil,
         medication: Medication? = nil,
         scheduledDose: ScheduledDose? = nil
     ) {
@@ -846,6 +904,9 @@ final class DoseEvent {
         self.loggedAt = loggedAt
         self.actionRaw = action.rawValue
         self.note = note
+        self.snoozeMinutes = snoozeMinutes
+        self.snoozeOffsetMinutes = snoozeOffsetMinutes
+        self.minutesLate = minutesLate
         self.medication = medication
         self.scheduledDose = scheduledDose
     }

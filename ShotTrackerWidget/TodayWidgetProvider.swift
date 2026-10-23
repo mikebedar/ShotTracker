@@ -28,7 +28,7 @@ struct TodayWidgetProvider: TimelineProvider {
         // the day turns over without waiting for the app to write.
         var dates: Set<Date> = [now, startOfTomorrow]
         for item in snapshot.items {
-            for boundary in [item.scheduledAt, item.windowEnd, item.snoozedUntil].compactMap({ $0 }) {
+            for boundary in [item.scheduledAt, item.deadline, item.snoozedUntil].compactMap({ $0 }) {
                 if boundary > now && boundary < endOfTomorrow { dates.insert(boundary) }
             }
         }

@@ -11,16 +11,22 @@ enum DemoData {
         let existing = (try? context.fetchCount(FetchDescriptor<Medication>())) ?? 0
         guard existing == 0 else { return }
 
-        let calendar = Calendar.current
+        // Schedules are written in their home zone (`-demoHomeTimeZone`, else the
+        // device's), and "today" / "an hour from now" are on the home clock: the doses
+        // land in the same Today buckets whichever zone the device is in.
+        let homeZone = LaunchOptions.demoHomeTimeZone ?? .current
+        var homeCalendar = Calendar(identifier: .gregorian)
+        homeCalendar.timeZone = homeZone
+        let calendar = homeCalendar
         let today = calendar.startOfDay(for: now)
         let weekAgo = calendar.date(byAdding: .day, value: -10, to: today) ?? today
-        let minutesNow = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
+        let minutesNow = homeCalendar.component(.hour, from: now) * 60 + homeCalendar.component(.minute, from: now)
         func clock(_ offsetMinutes: Int) -> ClockTime {
             let total = min(max(0, minutesNow + offsetMinutes), 23 * 60 + 59)
             return ClockTime(hour: total / 60, minute: total % 60)
         }
-        let weekday = calendar.component(.weekday, from: now)
-        let dayOfMonth = calendar.component(.day, from: now)
+        let weekday = homeCalendar.component(.weekday, from: now)
+        let dayOfMonth = homeCalendar.component(.day, from: now)
 
         // Overdue: a precise dose two hours ago with a one-hour grace.
         add("Lisinopril", canonical: "lisinopril 10 mg", kind: .oral,
@@ -84,8 +90,18 @@ enum DemoData {
         // Materialize, then log a believable past week: mostly taken, a skip, a miss.
         try? DoseRepository.refreshSchedules(in: context, engine: DoseScheduleEngine(), preferences: AppPreferencesStore.shared.preferences, referenceDate: now)
         let doses = (try? context.fetch(FetchDescriptor<ScheduledDose>(sortBy: [SortDescriptor(\.scheduledAt)]))) ?? []
+        var snoozedOne = false
         for (index, dose) in doses.enumerated() where dose.scheduledAt < today {
             if index % 9 == 4 { continue }  // missed
+            // One of yesterday's Metformin doses was snoozed near the end of its window
+            // and taken a little late: "Taken 15 min late · snoozed 20 min" in History.
+            if !snoozedOne, dose.medication?.displayName == "Metformin", dose.isFlexibleWindow,
+               calendar.isDate(dose.scheduledAt, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: today) ?? today) {
+                snoozedOne = true
+                try? DoseRepository.applyAction(.snoozed, to: dose, now: dose.windowEnd.addingTimeInterval(-10 * 60), context: context)
+                try? DoseRepository.applyAction(.taken, to: dose, now: dose.windowEnd.addingTimeInterval(15 * 60), context: context)
+                continue
+            }
             let action: DoseActionType = index % 11 == 7 ? .skipped : .taken
             try? DoseRepository.applyAction(action, to: dose, now: dose.scheduledAt.addingTimeInterval(20 * 60), context: context)
         }
@@ -127,6 +143,7 @@ enum DemoData {
         )
         let regimen = MedicationRegimen(
             anchorDate: anchor,
+            timeZoneIdentifier: (LaunchOptions.demoHomeTimeZone ?? .current).identifier,
             recurrenceRule: rule,
             timings: timings,
             graceWindowMinutes: grace,

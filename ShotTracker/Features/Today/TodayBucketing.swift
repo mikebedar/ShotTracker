@@ -134,7 +134,12 @@ enum DoseSupersession {
         }
 
         var result = Set<UUID>()
-        for dose in doses where dose.scheduledAt < startOfToday && dose.completedAt == nil && dose.lastAction != .skipped {
+        // Only a dose whose deadline has passed: one from "yesterday" can still be open —
+        // an 11 PM dose in its grace hours after midnight, or, away from home, a home
+        // evening dose that falls after local midnight — and hiding it hid a takeable dose
+        // (and its reminders).
+        for dose in doses where dose.scheduledAt < startOfToday && dose.completedAt == nil && dose.lastAction != .skipped
+            && dose.deadline < now {
             guard let medicationID = dose.medication?.id,
                   let latest = latestStartedByMedication[medicationID],
                   latest > dose.scheduledAt

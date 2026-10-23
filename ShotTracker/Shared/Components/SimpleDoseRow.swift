@@ -24,10 +24,18 @@ struct SimpleDoseRow: View {
                 HStack(spacing: 5) {
                     Image(systemName: (medication?.kind ?? .oral).symbolName)
                         .font(.caption2)
-                    Text(dose.scheduledAt.formatted(date: .omitted, time: .shortened))
+                    Text(times.time(dose.scheduledAt))
+                        .accessibilityLabel(times.spokenTime(dose.scheduledAt))
                 }
                 .font(Theme.Font.text(.footnote))
                 .foregroundStyle(Theme.Color.textSecondary)
+
+                if dose.snoozeOffset > 0 {
+                    Text(snoozeDetail)
+                        .font(Theme.Font.text(.caption))
+                        .foregroundStyle(Theme.Color.textTertiary)
+                        .accessibilityLabel(SnoozeWording.spoken(snoozeDetail))
+                }
             }
 
             Spacer(minLength: 0)
@@ -40,5 +48,19 @@ struct SimpleDoseRow: View {
         .opacity(isForecasted ? 0.65 : 1)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(AccessibilityID.scheduledDoseRow(dose.id))
+    }
+
+    /// The home clock (and the local one when they differ). A forecast dose has no
+    /// `medication` relationship, so the zone comes from the medication passed in.
+    private var times: ZonedTimeFormatter {
+        ZonedTimeFormatter(home: medication?.homeTimeZone(forVersion: dose.regimenVersion))
+    }
+
+    /// "Snoozed 20 min" on an open dose, "Taken 10 min late · snoozed 20 min" on a taken one.
+    private var snoozeDetail: String {
+        if dose.lastAction == .taken {
+            return SnoozeWording.takenText(minutesLate: dose.minutesLate, snoozeMinutes: dose.snoozeOffset)
+        }
+        return "Snoozed \(SnoozeWording.duration(minutes: dose.snoozeOffset))"
     }
 }

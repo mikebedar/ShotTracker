@@ -67,6 +67,12 @@ struct MedicationDetailView: View {
                 .accessibilityLabel(accessibilitySummary)
             }
 
+            if let regimen, ZonedTimeFormatter(home: regimen.homeTimeZone).differs(at: .now) {
+                Section {
+                    homeTimeZoneNote(for: regimen.homeTimeZone)
+                }
+            }
+
             if medication.isTrackingSupply, let unitLabel = medication.supplyUnitLabel {
                 Section("Supply") {
                     SupplyRow(
@@ -146,6 +152,29 @@ struct MedicationDetailView: View {
         } message: {
             Text("This removes it from your medications list and stops future doses. Its dose and refill history stay in History.")
         }
+    }
+
+    /// Shown only away from the schedule's home zone: which clock the times are on, how
+    /// far the device is from it, and where to change it.
+    private func homeTimeZoneNote(for home: TimeZone) -> some View {
+        let name = ZonedTimeFormatter.displayName(of: home)
+        let difference = (TimeZone.current.secondsFromGMT() - home.secondsFromGMT()) / 60
+        let offset = SnoozeWording.duration(minutes: abs(difference))
+        let relation = difference > 0 ? "\(offset) ahead of" : "\(offset) behind"
+        return Label {
+            VStack(alignment: .leading, spacing: Theme.Spacing.s1) {
+                Text("Home time zone: \(name)")
+                    .font(.subheadline.weight(.semibold))
+                Text("This device is \(relation) it. Doses stay at their home times and show both clocks, like “8:00 AM home · 2:00 PM here”; reminders come at the home time. To follow this device's clock instead, change the home time zone in Edit.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        } icon: {
+            Image(systemName: "globe")
+                .foregroundStyle(Theme.Color.accentStrong)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(AccessibilityID.homeTimeZoneNote)
     }
 
     private func logRefill() {

@@ -36,7 +36,7 @@ enum SupplyForecastService {
         // short) — then forecast occurrences past the last persisted one. A dose whose
         // window already closed doesn't count either way.
         let persisted = medication.scheduledDoses.filter {
-            $0.completedAt == nil && $0.lastAction != .skipped && $0.windowEnd > now
+            $0.completedAt == nil && $0.lastAction != .skipped && $0.deadline > now
         }
         let persistedThrough = medication.scheduledDoses.map(\.scheduledAt).max()
         let forecast = DoseForecastService

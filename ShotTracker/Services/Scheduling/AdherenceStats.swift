@@ -11,6 +11,12 @@ enum AdherenceStats {
         var adherencePercent: Int?
         var takenCount: Int = 0
         var missedCount: Int = 0
+        /// Taken doses (counted in `takenCount`) that were snoozed at least once first.
+        /// Reported beside the percentage rather than folded into it: a snoozed dose that
+        /// was taken is a taken dose, but a habit of snoozing is worth seeing.
+        var snoozedCount: Int = 0
+        /// Taken doses logged after their original window closed (snoozed or not).
+        var lateCount: Int = 0
         /// Consecutive days ending today (or yesterday, if today has no concluded doses
         /// yet) where every concluded dose was taken.
         var currentStreakDays: Int = 0
@@ -36,9 +42,12 @@ enum AdherenceStats {
 
             // Only doses whose outcome is settled: taken, skipped, or past their window.
             let taken: Bool
-            switch statusFor(dose) {
+            let status = statusFor(dose)
+            switch status {
             case .takenOnTime, .takenLate:
                 taken = true
+                if dose.snoozeOffset > 0 { stats.snoozedCount += 1 }
+                if status == .takenLate { stats.lateCount += 1 }
             case .skipped, .overdue:
                 taken = false
             case .upcoming, .due, .snoozed:

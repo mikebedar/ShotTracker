@@ -153,6 +153,8 @@ struct DoseRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                // "by 12:00 PM home · 6:00 PM here" away from the home zone.
+                .minimumScaleFactor(0.75)
             }
 
             Spacer(minLength: 4)

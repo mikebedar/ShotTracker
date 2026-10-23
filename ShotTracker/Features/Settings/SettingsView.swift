@@ -82,6 +82,14 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    LabeledContent("This device", value: ZonedTimeFormatter.displayName(of: .current))
+                } header: {
+                    Text("Time Zones")
+                } footer: {
+                    Text("Each medication keeps the time zone its schedule was set up in, its home zone. When you travel, a dose set for 8:00 AM stays at 8:00 AM home time and its reminder comes then; times show both clocks, like “8:00 AM home · 2:00 PM here”. To move a medication to the local clock, change its home time zone in Edit.")
+                }
+
+                Section {
                     Toggle("Show medication names in widget", isOn: Binding(
                         get: { preferencesStore.preferences.showMedicationNamesInWidget },
                         set: { preferencesStore.preferences.showMedicationNamesInWidget = $0 }

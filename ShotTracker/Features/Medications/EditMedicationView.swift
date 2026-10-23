@@ -19,6 +19,10 @@ struct MedicationDraft {
     var onHandUnits = 30
     var supplyLowThreshold = 6
     var anchorDate = Date()
+    /// The clock the schedule's times are on — the device's for a new medication, the
+    /// regimen's own when editing (an edit made while travelling used to re-home the
+    /// schedule to wherever the phone was). Changing it creates a new regimen version.
+    var homeTimeZoneIdentifier = TimeZone.current.identifier
     var frequency: ScheduleFrequency = .daily
     var intervalDays = 1
     /// Defaults to today's weekday / day of month, not a fixed Monday / the 1st.
@@ -62,6 +66,7 @@ struct MedicationDraft {
 
         if let regimen = medication.regimens.active {
             anchorDate = regimen.anchorDate
+            homeTimeZoneIdentifier = regimen.timeZoneIdentifier
             frequency = regimen.recurrenceRule.frequency
             intervalDays = regimen.recurrenceRule.intervalDays
             weekdays = Set(regimen.recurrenceRule.weekdays)
@@ -131,6 +136,7 @@ struct MedicationDraft {
             .sorted { $0.startDayOffset < $1.startDayOffset }
             .map { PhaseDraft(phase: $0) }
         return !calendar.isDate(anchorDate, inSameDayAs: regimen.anchorDate)
+            || homeTimeZoneIdentifier != regimen.timeZoneIdentifier
             || recurrenceRule != regimen.recurrenceRule
             || timings != regimen.timings
             || graceWindowMinutes != regimen.graceWindowMinutes
@@ -270,6 +276,8 @@ struct EditMedicationView: View {
 
                 Section("Schedule") {
                     DatePicker("Starts on", selection: $draft.anchorDate, displayedComponents: .date)
+
+                    homeTimeZoneRow
 
                     Picker("Frequency", selection: $draft.frequency) {
                         ForEach(ScheduleFrequency.allCases) { frequency in
@@ -551,6 +559,32 @@ struct EditMedicationView: View {
         }
     }
 
+    /// "Home time zone  New York (Eastern Time) ›" — the clock every time below is on.
+    /// Away from it, a one-tap switch to the device's zone (a new regimen version: future
+    /// doses move to the same wall-clock times here, history stays as it was).
+    @ViewBuilder
+    private var homeTimeZoneRow: some View {
+        let home = TimeZone(identifier: draft.homeTimeZoneIdentifier) ?? .current
+        NavigationLink {
+            TimeZonePickerView(selection: $draft.homeTimeZoneIdentifier)
+        } label: {
+            LabeledContent("Home time zone", value: ZonedTimeFormatter.displayName(of: home))
+        }
+        .accessibilityIdentifier(AccessibilityID.homeTimeZoneRow)
+
+        if home.secondsFromGMT() != TimeZone.current.secondsFromGMT() {
+            VStack(alignment: .leading, spacing: Theme.Spacing.s2) {
+                Text("The times below are on this clock. Doses stay on it while you travel and show both clocks, home and here.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button("Use This Device's Time Zone (\(ZonedTimeFormatter.displayName(of: .current)))") {
+                    draft.homeTimeZoneIdentifier = TimeZone.current.identifier
+                }
+                .font(.footnote.weight(.semibold))
+            }
+        }
+    }
+
     private var defaultSupplyUnit: String {
         draft.kind == .injection ? "doses" : "tablets"
     }
@@ -705,6 +739,7 @@ struct EditMedicationView: View {
             let regimen = MedicationRegimen(
                 version: newVersion,
                 anchorDate: draft.anchorDate,
+                timeZoneIdentifier: draft.homeTimeZoneIdentifier,
                 recurrenceRule: draft.recurrenceRule,
                 timings: draft.timings,
                 graceWindowMinutes: draft.graceWindowMinutes,

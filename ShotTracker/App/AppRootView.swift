@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct AppRootView: View {
     @Environment(\.appDependencies) private var dependencies
@@ -42,7 +43,18 @@ struct AppRootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 dependencies.sceneBecameActive(context: modelContext)
+            } else if phase == .background, !LaunchOptions.isUITesting {
+                BackgroundRefresh.scheduleNext()
             }
+        }
+        // Midnight, DST, a manual clock change, or landing in another time zone: re-plan
+        // (the local times in notification text and "today" itself depend on the clock).
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            dependencies.timeChanged(context: modelContext)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+            LaunchOptions.resetSystemTimeZoneUnlessOverridden()
+            dependencies.timeChanged(context: modelContext)
         }
         .onOpenURL { url in
             // The home-screen widget opens `shottracker://today` — land on the Today tab.

@@ -18,6 +18,8 @@ enum AccessibilityID {
     static let snoozeDoseButton = "button.snoozeDose"
     static let skipDoseButton = "button.skipDose"
     static let notificationToggle = "toggle.notifications"
+    static let homeTimeZoneRow = "row.homeTimeZone"
+    static let homeTimeZoneNote = "text.homeTimeZoneNote"
 
     static func medicationRow(_ id: UUID) -> String {
         "row.medication.\(id.uuidString)"

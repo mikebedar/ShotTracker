@@ -14,30 +14,29 @@ final class DoseStatusEvaluator {
             return .snoozed
         }
 
-        // A snooze pushes both bounds of the (possibly flexible) window forward.
-        let windowStart = dose.snoozedUntil ?? dose.windowStart
-        let windowEnd = dose.snoozedUntil.map { $0.addingTimeInterval(dose.windowEnd.timeIntervalSince(dose.windowStart)) } ?? dose.windowEnd
-
-        if now < windowStart {
+        if now < dose.windowStart {
             return .upcoming
         }
 
-        if now <= windowEnd {
+        // A snooze moves only the deadline, by the snoozed minutes (it used to push both
+        // window bounds to the snooze end, stretching a morning dose into the afternoon).
+        if now <= dose.deadline {
             return .due
         }
 
         return .overdue
     }
 
+    /// On time vs late is judged against the *original* window: a snooze buys time
+    /// before the dose counts as overdue, not a later "on time".
     func completionStatus(for dose: ScheduledDose, completionDate: Date) -> DoseStatus {
-        let windowEnd = dose.snoozedUntil.map { $0.addingTimeInterval(dose.windowEnd.timeIntervalSince(dose.windowStart)) } ?? dose.windowEnd
         // Anywhere up to the window close — including early — counts as on time.
-        return completionDate <= windowEnd ? .takenOnTime : .takenLate
+        completionDate <= dose.windowEnd ? .takenOnTime : .takenLate
     }
 
     func statusSummary(for dose: ScheduledDose, medicationName: String, now: Date = .now) -> String {
         let status = effectiveStatus(for: dose, now: now)
-        let time = dose.scheduledAt.formatted(date: .omitted, time: .shortened)
+        let time = ZonedTimeFormatter(home: dose.homeTimeZone).spokenTime(dose.scheduledAt)
         return "\(medicationName), \(status.title), scheduled \(time)"
     }
 }

@@ -36,6 +36,10 @@ final class AppDependencies {
         await notificationScheduler.refreshAuthorizationStatus()
         await rescheduleNotifications(context: context)
         refreshWidgetSnapshot(context: context)
+        // Keep re-planning daily while the app isn't opened (see `BackgroundRefresh`).
+        if !LaunchOptions.isUITesting {
+            BackgroundRefresh.scheduleNext()
+        }
     }
 
     /// Regenerates the materialized window, then (coalesced) reschedules notifications
@@ -64,6 +68,49 @@ final class AppDependencies {
             guard !Task.isCancelled, let self else { return }
             self.refreshSchedules(context: context)
         }
+    }
+
+    /// The clock or the time zone changed (`significantTimeChangeNotification`: midnight,
+    /// DST, a manual change; `NSSystemTimeZoneDidChange`: travel). Doses keep their home
+    /// zone's instants, but "today", the widget's day and the notification text (which
+    /// names the local time) all depend on the device clock.
+    func timeChanged(context: ModelContext) {
+        guard hasBootstrapped else { return }
+        refreshSchedules(context: context)
+    }
+
+    /// One `BGAppRefreshTask` run (`BackgroundRefresh`): regenerate, re-plan the
+    /// notifications through `BackgroundRefresh.plan` (queued behind any reschedule in
+    /// flight), republish the widget. Doesn't need `bootstrapIfNeeded` — a background
+    /// launch never shows a scene — and is idempotent.
+    func performBackgroundRefresh(context: ModelContext) async {
+        let previous = notificationTask
+        let preferences = preferencesStore.preferences
+        let task = Task { [weak self] in
+            await previous?.value
+            guard let self, !Task.isCancelled else { return }
+            do {
+                if let plan = try BackgroundRefresh.plan(
+                    context: context,
+                    engine: self.scheduleEngine,
+                    evaluator: self.statusEvaluator,
+                    preferences: preferences,
+                    now: .now
+                ) {
+                    await self.notificationScheduler.applyIfAuthorized(plan)
+                }
+            } catch {
+                Self.log.error("Background refresh failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        notificationTask = task
+        // The system ends a background task that runs too long; pass that on.
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+        refreshWidgetSnapshot(context: context)
     }
 
     func recordDoseAction(_ action: DoseActionType, dose: ScheduledDose, context: ModelContext) {
