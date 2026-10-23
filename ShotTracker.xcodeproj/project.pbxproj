@@ -1,0 +1,752 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		9CF41801000000000000000B /* TodayWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF41801000000000000000A /* TodayWidgetSnapshot.swift */; };
+		9CF41801000000000000000D /* ShotTrackerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9CF418010000000000000002 /* ShotTrackerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		9CF417882F8A89C100E9BDF3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9CF417702F8A89BF00E9BDF3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9CF417772F8A89BF00E9BDF3;
+			remoteInfo = ShotTracker;
+		};
+		9CF417922F8A89C100E9BDF3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9CF417702F8A89BF00E9BDF3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9CF417772F8A89BF00E9BDF3;
+			remoteInfo = ShotTracker;
+		};
+		9CF41801000000000000000F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9CF417702F8A89BF00E9BDF3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9CF418010000000000000001;
+			remoteInfo = ShotTrackerWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		9CF41801000000000000000C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				9CF41801000000000000000D /* ShotTrackerWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		9CF417782F8A89BF00E9BDF3 /* ShotTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShotTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9CF417872F8A89C100E9BDF3 /* ShotTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShotTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9CF417912F8A89C100E9BDF3 /* ShotTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShotTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9CF418010000000000000002 /* ShotTrackerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShotTrackerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		9CF41801000000000000000A /* TodayWidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TodayWidgetSnapshot.swift; path = ShotTracker/Shared/Widget/TodayWidgetSnapshot.swift; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		9CF418010000000000000010 /* Exceptions for "ShotTrackerWidget" folder in "ShotTrackerWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 9CF418010000000000000001 /* ShotTrackerWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		9CF4177A2F8A89BF00E9BDF3 /* ShotTracker */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ShotTracker;
+			sourceTree = "<group>";
+		};
+		9CF4178A2F8A89C100E9BDF3 /* ShotTrackerTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ShotTrackerTests;
+			sourceTree = "<group>";
+		};
+		9CF417942F8A89C100E9BDF3 /* ShotTrackerUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ShotTrackerUITests;
+			sourceTree = "<group>";
+		};
+		9CF418010000000000000003 /* ShotTrackerWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				9CF418010000000000000010 /* Exceptions for "ShotTrackerWidget" folder in "ShotTrackerWidgetExtension" target */,
+			);
+			path = ShotTrackerWidget;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		9CF417752F8A89BF00E9BDF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CF417842F8A89C100E9BDF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CF4178E2F8A89C100E9BDF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CF418010000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		9CF4176F2F8A89BF00E9BDF3 = {
+			isa = PBXGroup;
+			children = (
+				9CF4177A2F8A89BF00E9BDF3 /* ShotTracker */,
+				9CF4178A2F8A89C100E9BDF3 /* ShotTrackerTests */,
+				9CF417942F8A89C100E9BDF3 /* ShotTrackerUITests */,
+				9CF418010000000000000003 /* ShotTrackerWidget */,
+				9CF41801000000000000000A /* TodayWidgetSnapshot.swift */,
+				9CF417792F8A89BF00E9BDF3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		9CF417792F8A89BF00E9BDF3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9CF417782F8A89BF00E9BDF3 /* ShotTracker.app */,
+				9CF417872F8A89C100E9BDF3 /* ShotTrackerTests.xctest */,
+				9CF417912F8A89C100E9BDF3 /* ShotTrackerUITests.xctest */,
+				9CF418010000000000000002 /* ShotTrackerWidgetExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9CF417772F8A89BF00E9BDF3 /* ShotTracker */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9CF4179B2F8A89C100E9BDF3 /* Build configuration list for PBXNativeTarget "ShotTracker" */;
+			buildPhases = (
+				9CF417742F8A89BF00E9BDF3 /* Sources */,
+				9CF417752F8A89BF00E9BDF3 /* Frameworks */,
+				9CF417762F8A89BF00E9BDF3 /* Resources */,
+				9CF41801000000000000000C /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9CF41801000000000000000E /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				9CF4177A2F8A89BF00E9BDF3 /* ShotTracker */,
+			);
+			name = ShotTracker;
+			packageProductDependencies = (
+			);
+			productName = ShotTracker;
+			productReference = 9CF417782F8A89BF00E9BDF3 /* ShotTracker.app */;
+			productType = "com.apple.product-type.application";
+		};
+		9CF417862F8A89C100E9BDF3 /* ShotTrackerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9CF4179E2F8A89C100E9BDF3 /* Build configuration list for PBXNativeTarget "ShotTrackerTests" */;
+			buildPhases = (
+				9CF417832F8A89C100E9BDF3 /* Sources */,
+				9CF417842F8A89C100E9BDF3 /* Frameworks */,
+				9CF417852F8A89C100E9BDF3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9CF417892F8A89C100E9BDF3 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				9CF4178A2F8A89C100E9BDF3 /* ShotTrackerTests */,
+			);
+			name = ShotTrackerTests;
+			packageProductDependencies = (
+			);
+			productName = ShotTrackerTests;
+			productReference = 9CF417872F8A89C100E9BDF3 /* ShotTrackerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		9CF417902F8A89C100E9BDF3 /* ShotTrackerUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9CF417A12F8A89C100E9BDF3 /* Build configuration list for PBXNativeTarget "ShotTrackerUITests" */;
+			buildPhases = (
+				9CF4178D2F8A89C100E9BDF3 /* Sources */,
+				9CF4178E2F8A89C100E9BDF3 /* Frameworks */,
+				9CF4178F2F8A89C100E9BDF3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9CF417932F8A89C100E9BDF3 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				9CF417942F8A89C100E9BDF3 /* ShotTrackerUITests */,
+			);
+			name = ShotTrackerUITests;
+			packageProductDependencies = (
+			);
+			productName = ShotTrackerUITests;
+			productReference = 9CF417912F8A89C100E9BDF3 /* ShotTrackerUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		9CF418010000000000000001 /* ShotTrackerWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9CF418010000000000000007 /* Build configuration list for PBXNativeTarget "ShotTrackerWidgetExtension" */;
+			buildPhases = (
+				9CF418010000000000000004 /* Sources */,
+				9CF418010000000000000005 /* Frameworks */,
+				9CF418010000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				9CF418010000000000000003 /* ShotTrackerWidget */,
+			);
+			name = ShotTrackerWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = ShotTrackerWidgetExtension;
+			productReference = 9CF418010000000000000002 /* ShotTrackerWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9CF417702F8A89BF00E9BDF3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2640;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					9CF417772F8A89BF00E9BDF3 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+					9CF417862F8A89C100E9BDF3 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = 9CF417772F8A89BF00E9BDF3;
+					};
+					9CF417902F8A89C100E9BDF3 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = 9CF417772F8A89BF00E9BDF3;
+					};
+					9CF418010000000000000001 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+				};
+			};
+			buildConfigurationList = 9CF417732F8A89BF00E9BDF3 /* Build configuration list for PBXProject "ShotTracker" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 9CF4176F2F8A89BF00E9BDF3;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 9CF417792F8A89BF00E9BDF3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9CF417772F8A89BF00E9BDF3 /* ShotTracker */,
+				9CF417862F8A89C100E9BDF3 /* ShotTrackerTests */,
+				9CF417902F8A89C100E9BDF3 /* ShotTrackerUITests */,
+				9CF418010000000000000001 /* ShotTrackerWidgetExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		9CF417762F8A89BF00E9BDF3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CF417852F8A89C100E9BDF3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CF4178F2F8A89C100E9BDF3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CF418010000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9CF417742F8A89BF00E9BDF3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CF417832F8A89C100E9BDF3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CF4178D2F8A89C100E9BDF3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CF418010000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9CF41801000000000000000B /* TodayWidgetSnapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9CF417892F8A89C100E9BDF3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9CF417772F8A89BF00E9BDF3 /* ShotTracker */;
+			targetProxy = 9CF417882F8A89C100E9BDF3 /* PBXContainerItemProxy */;
+		};
+		9CF417932F8A89C100E9BDF3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9CF417772F8A89BF00E9BDF3 /* ShotTracker */;
+			targetProxy = 9CF417922F8A89C100E9BDF3 /* PBXContainerItemProxy */;
+		};
+		9CF41801000000000000000E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9CF418010000000000000001 /* ShotTrackerWidgetExtension */;
+			targetProxy = 9CF41801000000000000000F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		9CF417992F8A89C100E9BDF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		9CF4179A2F8A89C100E9BDF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		9CF4179C2F8A89C100E9BDF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ShotTracker/ShotTracker.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = bedar.net.ShotTracker;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9CF4179D2F8A89C100E9BDF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ShotTracker/ShotTracker.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = bedar.net.ShotTracker;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		9CF4179F2F8A89C100E9BDF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = bedar.net.ShotTrackerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ShotTracker.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ShotTracker";
+			};
+			name = Debug;
+		};
+		9CF417A02F8A89C100E9BDF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = bedar.net.ShotTrackerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ShotTracker.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ShotTracker";
+			};
+			name = Release;
+		};
+		9CF417A22F8A89C100E9BDF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = bedar.net.ShotTrackerUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = ShotTracker;
+			};
+			name = Debug;
+		};
+		9CF417A32F8A89C100E9BDF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = bedar.net.ShotTrackerUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = ShotTracker;
+			};
+			name = Release;
+		};
+		9CF418010000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShotTrackerWidget/ShotTrackerWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShotTrackerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Today's Doses";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = bedar.net.ShotTracker.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9CF418010000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShotTrackerWidget/ShotTrackerWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LMNQ9YTY2C;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShotTrackerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Today's Doses";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = bedar.net.ShotTracker.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9CF417732F8A89BF00E9BDF3 /* Build configuration list for PBXProject "ShotTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9CF417992F8A89C100E9BDF3 /* Debug */,
+				9CF4179A2F8A89C100E9BDF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9CF4179B2F8A89C100E9BDF3 /* Build configuration list for PBXNativeTarget "ShotTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9CF4179C2F8A89C100E9BDF3 /* Debug */,
+				9CF4179D2F8A89C100E9BDF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9CF4179E2F8A89C100E9BDF3 /* Build configuration list for PBXNativeTarget "ShotTrackerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9CF4179F2F8A89C100E9BDF3 /* Debug */,
+				9CF417A02F8A89C100E9BDF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9CF417A12F8A89C100E9BDF3 /* Build configuration list for PBXNativeTarget "ShotTrackerUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9CF417A22F8A89C100E9BDF3 /* Debug */,
+				9CF417A32F8A89C100E9BDF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9CF418010000000000000007 /* Build configuration list for PBXNativeTarget "ShotTrackerWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9CF418010000000000000008 /* Debug */,
+				9CF418010000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 9CF417702F8A89BF00E9BDF3 /* Project object */;
+}
