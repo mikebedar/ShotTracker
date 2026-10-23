@@ -144,7 +144,9 @@ final class ScreenshotTourUITests: XCTestCase {
         app.tab("tab.medications").tap()
         sleep(1)
         shot("d05-medications-two-zones")
-        app.staticTexts["Metformin"].firstMatch.tap()
+        let metformin = app.staticTexts["Metformin"].firstMatch
+        _ = app.scrollUntilHittable(metformin)
+        metformin.tap()
         sleep(1)
         shot("d06-detail-home-zone")
         let scheduled = app.staticTexts["Scheduled doses"].firstMatch

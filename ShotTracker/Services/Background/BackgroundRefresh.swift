@@ -20,7 +20,10 @@ import SwiftData
 ///
 ///     e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"bedar.net.ShotTracker.refresh"]
 ///
-/// and continue; the `background` log category reports the run.
+/// and continue; the `background` log category reports the run. The iOS 27 simulator
+/// refuses `submitTaskRequest` ("not available on this platform"), so there the call
+/// finds no scheduled request; on a simulator, launch with `-runBackgroundRefresh`
+/// (Debug) to run the same handler once after launch instead.
 enum BackgroundRefresh {
     /// Must match `BGTaskSchedulerPermittedIdentifiers` in `ShotTracker/Info.plist`.
     nonisolated static let taskIdentifier = "bedar.net.ShotTracker.refresh"
@@ -78,9 +81,14 @@ enum BackgroundRefresh {
     /// The task handler (`ShotTrackerApp`'s `.backgroundTask(.appRefresh(…))`).
     @MainActor
     static func run(container: ModelContainer) async {
+        await run(context: container.mainContext)
+    }
+
+    @MainActor
+    static func run(context: ModelContext) async {
         log.info("Background refresh started")
         scheduleNext()
-        await AppDependencies.shared.performBackgroundRefresh(context: container.mainContext)
-        log.info("Background refresh finished: \(AppDependencies.shared.notificationScheduler.lastPlannedCount) reminders pending of \(AppDependencies.shared.notificationScheduler.lastCandidateCount)")
+        await AppDependencies.shared.performBackgroundRefresh(context: context)
+        log.info("Background refresh finished: \(AppDependencies.shared.notificationScheduler.lastPlannedCount) reminders handed to the system")
     }
 }

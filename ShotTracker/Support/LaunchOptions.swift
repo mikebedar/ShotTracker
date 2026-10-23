@@ -9,6 +9,8 @@ import Foundation
 ///   (`StubURLProtocol`), so lookup tests are deterministic and never hit the network.
 /// - `-seedDemoData`: fill an empty store with `DemoData` (every regimen kind, doses in
 ///   every Today bucket, a week of history). Works with or without `-uiTesting`.
+/// - `-runBackgroundRefresh`: run the `BGAppRefreshTask` handler once after launch (the
+///   simulator won't schedule one).
 /// - `-deviceTimeZone <identifier>`: run as if the device were in that zone
 ///   (`NSTimeZone.default`), e.g. `Europe/Paris` — for the "home · here" display.
 /// - `-demoHomeTimeZone <identifier>`: the zone `DemoData`'s schedules are written in
@@ -20,6 +22,7 @@ nonisolated enum LaunchOptions {
     static let isUITesting = arguments.contains("-uiTesting")
     static let stubsNetwork = arguments.contains("-uiTestStubNetwork")
     static let seedsDemoData = arguments.contains("-seedDemoData")
+    static let runsBackgroundRefresh = arguments.contains("-runBackgroundRefresh")
     static let deviceTimeZone = value(after: "-deviceTimeZone").flatMap(TimeZone.init(identifier:))
     static let demoHomeTimeZone = value(after: "-demoHomeTimeZone").flatMap(TimeZone.init(identifier:))
 
@@ -31,6 +34,7 @@ nonisolated enum LaunchOptions {
     static let isUITesting = false
     static let stubsNetwork = false
     static let seedsDemoData = false
+    static let runsBackgroundRefresh = false
     static let deviceTimeZone: TimeZone? = nil
     static let demoHomeTimeZone: TimeZone? = nil
     #endif

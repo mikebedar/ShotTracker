@@ -97,6 +97,7 @@ final class AppDependencies {
                     preferences: preferences,
                     now: .now
                 ) {
+                    BackgroundRefresh.log.info("Planned \(plan.requests.count) reminders of \(plan.candidateCount) candidates (\(plan.requests.filter { $0.identifier.hasPrefix("refill-") }.count) refill)")
                     await self.notificationScheduler.applyIfAuthorized(plan)
                 }
             } catch {

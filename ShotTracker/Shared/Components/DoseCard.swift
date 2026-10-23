@@ -155,7 +155,8 @@ struct DoseCard: View {
     }
 
     private var resolvedFooter: some View {
-        HStack {
+        // Stacks at AX sizes: beside Undo, a long footer broke mid-word.
+        AdaptiveStack(spacing: Theme.Spacing.s2) {
             Text(footerText)
                 .font(Theme.Font.text(.footnote))
                 .foregroundStyle(Theme.Color.textTertiary)
@@ -171,7 +172,7 @@ struct DoseCard: View {
     /// "Snoozed 20 min · reminder at 10:20 AM" while the snooze runs, "Snoozed 20 min"
     /// once it has ended; Undo takes the last snooze back.
     private var snoozeFooter: some View {
-        HStack {
+        AdaptiveStack(spacing: Theme.Spacing.s2) {
             Label(snoozeText(time: times.time), systemImage: DoseStatus.snoozed.symbolName)
                 .font(Theme.Font.text(.footnote))
                 .foregroundStyle(Theme.Color.textSecondary)

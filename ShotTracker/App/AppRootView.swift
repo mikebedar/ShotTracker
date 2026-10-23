@@ -39,6 +39,9 @@ struct AppRootView: View {
         }
         .task {
             await dependencies.bootstrapIfNeeded(context: modelContext)
+            if LaunchOptions.runsBackgroundRefresh {
+                await BackgroundRefresh.run(context: modelContext)
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
