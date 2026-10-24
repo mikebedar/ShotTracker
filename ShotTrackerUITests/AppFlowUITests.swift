@@ -71,6 +71,27 @@ final class AppFlowUITests: XCTestCase {
         XCTAssertTrue(takeAgain.exists, "After Undo the dose is takeable again")
     }
 
+    /// The toast's Undo (Atelier's presenter) reverts a Take through the same path as the card's Undo.
+    @MainActor
+    func testToastUndoRevertsATake() throws {
+        let app = XCUIApplication.launchedForTesting(seedDemoData: true)
+        let metformin = row(app, containing: "Metformin, due")
+        XCTAssertTrue(metformin.waitForExistence(timeout: 10))
+        let id = doseID(of: metformin)
+        let take = app.buttons["button.takeDose.\(id)"]
+        XCTAssertTrue(app.scrollUntilHittable(take))
+        take.tap()
+        XCTAssertTrue(app.staticTexts["Marked Metformin as taken"].waitForExistence(timeout: 5))
+
+        let toastUndo = app.buttons.matching(NSPredicate(format: "label == 'Undo' AND NOT (identifier BEGINSWITH 'button.undoDose.')")).firstMatch
+        XCTAssertTrue(toastUndo.waitForExistence(timeout: 5), "The toast offers Undo")
+        toastUndo.tap()
+
+        let takeAgain = app.buttons["button.takeDose.\(id)"]
+        scrollToTop(app, until: takeAgain)
+        XCTAssertTrue(takeAgain.waitForExistence(timeout: 5), "After the toast's Undo the dose is takeable again")
+    }
+
     @MainActor
     func testLoggingARefillUpdatesSupply() throws {
         let app = XCUIApplication.launchedForTesting(seedDemoData: true)

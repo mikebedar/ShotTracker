@@ -1,3 +1,4 @@
+import Atelier
 import SwiftData
 import SwiftUI
 
@@ -10,7 +11,7 @@ struct MedicationDetailView: View {
     @State private var isPresentingEdit = false
     @State private var isPresentingRefill = false
     @State private var refillQuantityText = ""
-    @State private var isPresentingDeleteConfirmation = false
+    @Environment(\.presenter) private var presenter
 
     private var regimen: MedicationRegimen? {
         medication.regimens.active
@@ -128,7 +129,7 @@ struct MedicationDetailView: View {
 
             Section {
                 Button("Delete Medication", role: .destructive) {
-                    isPresentingDeleteConfirmation = true
+                    deleteMedication()
                 }
                 .accessibilityIdentifier(AccessibilityID.deleteMedicationButton)
             }
@@ -153,14 +154,6 @@ struct MedicationDetailView: View {
             Button("Add") { logRefill() }
         } message: {
             Text("How many \(medication.supplyUnitLabel ?? "units") did you get? This adds a new \(medication.kind.containerNoun) to your supply.")
-        }
-        .alert("Delete \(medication.displayName)?", isPresented: $isPresentingDeleteConfirmation) {
-            Button("Delete", role: .destructive) {
-                deleteMedication()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This removes it from your medications list and stops future doses. Its dose and refill history stay in History.")
         }
     }
 
@@ -208,10 +201,10 @@ struct MedicationDetailView: View {
         dependencies.logRefill(quantity, for: medication, context: modelContext)
     }
 
+    /// Archives it (history stays) with Undo in the toast, and goes back to the list.
     private func deleteMedication() {
-        try? MedicationRepository.archive(medication, in: modelContext)
-        dependencies.refreshSchedules(context: modelContext)
-        dismiss()
+        MedicationArchiving.archive(medication, presenter: presenter, dependencies: dependencies, context: modelContext)
+        if !medication.isActive { dismiss() }
     }
 
     private var accessibilitySummary: String {

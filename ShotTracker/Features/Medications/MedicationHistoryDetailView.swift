@@ -1,3 +1,4 @@
+import Atelier
 import SwiftData
 import SwiftUI
 

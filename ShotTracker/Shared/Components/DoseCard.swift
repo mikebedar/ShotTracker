@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Primary dose card: artwork + name + status pill, an action bar when actionable
@@ -272,13 +273,13 @@ struct DoseCard: View {
     @ViewBuilder
     private var cardBackground: some View {
         if isOverdue {
-            LinearGradient(
-                colors: [Theme.Color.statusOverdueSoft, Theme.Color.surface],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            Rectangle().fill(Theme.Color.surface).overlay {
+                Rectangle()
+                    .fill(Theme.Color.statusOverdueSoft)
+                    .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
+            }
         } else {
-            Theme.Color.surface
+            Rectangle().fill(Theme.Color.surface)
         }
     }
 

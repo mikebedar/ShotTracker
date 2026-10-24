@@ -114,16 +114,19 @@ final class AppDependencies {
         refreshWidgetSnapshot(context: context)
     }
 
-    func recordDoseAction(_ action: DoseActionType, dose: ScheduledDose, context: ModelContext) {
+    /// Returns false when the repository refused or failed (logged); the screens report that through the presenter.
+    @discardableResult
+    func recordDoseAction(_ action: DoseActionType, dose: ScheduledDose, context: ModelContext) -> Bool {
         do {
             try DoseRepository.applyAction(action, to: dose, context: context)
         } catch {
             Self.log.error("Dose action \(action.rawValue, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
-            return
+            return false
         }
 
         // A taken dose can re-anchor a rolling schedule; regenerate before rescheduling.
         refreshSchedules(context: context)
+        return true
     }
 
     /// Logs a refill and refreshes what depends on supply (the refill reminder and the
@@ -138,6 +141,18 @@ final class AppDependencies {
         }
         scheduleNotificationRefresh(context: context)
         refreshWidgetSnapshot(context: context)
+    }
+
+    /// Archives ("deletes") a medication, keeping its history, and re-plans. Throws so the screen can report it.
+    func archive(_ medication: Medication, context: ModelContext) throws {
+        try MedicationRepository.archive(medication, in: context)
+        refreshSchedules(context: context)
+    }
+
+    /// Puts an archived medication back (Undo, or Reactivate) and regenerates its doses.
+    func unarchive(_ medication: Medication, context: ModelContext) throws {
+        try MedicationRepository.unarchive(medication, in: context)
+        refreshSchedules(context: context)
     }
 
     /// Republishes the home-screen widget's App Group snapshot. Called wherever schedules

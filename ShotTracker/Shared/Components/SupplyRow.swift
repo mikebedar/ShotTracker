@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Remaining-supply indicator for a dose card. Visualizes the *current* container
@@ -19,7 +20,7 @@ struct SupplyRow: View {
     private var progress: Double {
         unitsPerContainer > 0 ? min(max(Double(currentContainerRemaining) / Double(unitsPerContainer), 0), 1) : 0
     }
-    private var indicatorColor: Color { isLow ? Theme.Color.statusOverdue : Theme.Color.accent }
+    private var indicatorColor: ThemeColor { isLow ? Theme.Color.statusOverdue : Theme.Color.accent }
     private var hasMultipleContainers: Bool { totalRemaining > currentContainerRemaining }
 
     private var summaryText: String {

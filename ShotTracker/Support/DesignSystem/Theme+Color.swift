@@ -1,49 +1,51 @@
 import SwiftUI
+import Atelier
 
-/// Color tokens. Backed by `Assets.xcassets/Theme/*.colorset` (Any + Dark appearance each),
-/// converted from the source design's OKLCH values to sRGB via the standard OKLab conversion
-/// (see `oklch(lightness:chroma:hueDegrees:)` below for the same math, kept for the avatar
-/// hue system which needs it at runtime rather than as fixed swatches).
+/// Color tokens: a typed facade over the Atelier theme's semantic roles (`ShotTrackerTheme`, or whatever theme the
+/// person picked in Settings → Appearance). Each is a `ThemeColor`, a `ShapeStyle` that resolves against the
+/// environment's theme, colour scheme and contrast at draw time, so these follow the theme, dark mode and Increase
+/// Contrast without an asset catalog. (Until 2026-10-23 they were 25 hand-converted colorsets.)
 ///
-/// Access colors only through `Theme.Color.*` — never call `Color("...")` elsewhere, so a
-/// typo'd asset name is a compile error everywhere it matters.
+/// Prefer Atelier's own spelling in new code (`.foregroundStyle(.contentSecondary)`, `.surface(.raised)`); these names
+/// stay so existing call sites keep their meaning.
 extension Theme {
     nonisolated enum Color {
-        static var background: SwiftUI.Color { SwiftUI.Color("ColorBackground") }
-        static var surface: SwiftUI.Color { SwiftUI.Color("ColorSurface") }
-        static var surfaceSecondary: SwiftUI.Color { SwiftUI.Color("ColorSurfaceSecondary") }
-        static var border: SwiftUI.Color { SwiftUI.Color("ColorBorder") }
-        static var borderStrong: SwiftUI.Color { SwiftUI.Color("ColorBorderStrong") }
-        static var textPrimary: SwiftUI.Color { SwiftUI.Color("ColorTextPrimary") }
-        static var textSecondary: SwiftUI.Color { SwiftUI.Color("ColorTextSecondary") }
-        static var textTertiary: SwiftUI.Color { SwiftUI.Color("ColorTextTertiary") }
-        static var shadowCard: SwiftUI.Color { SwiftUI.Color("ColorShadowCard") }
+        static var background: ThemeColor { .surfaceBase }
+        static var surface: ThemeColor { .surfaceRaised }
+        static var surfaceSecondary: ThemeColor { .surfaceSubtle }
+        static var border: ThemeColor { .borderSubtle }
+        static var borderStrong: ThemeColor { .borderStrong }
+        static var textPrimary: ThemeColor { .contentPrimary }
+        static var textSecondary: ThemeColor { .contentSecondary }
+        static var textTertiary: ThemeColor { .contentTertiary }
 
-        static var accent: SwiftUI.Color { SwiftUI.Color("ColorAccent") }
-        static var accentStrong: SwiftUI.Color { SwiftUI.Color("ColorAccentStrong") }
-        static var accentSoft: SwiftUI.Color { SwiftUI.Color("ColorAccentSoft") }
-        static var accentOn: SwiftUI.Color { SwiftUI.Color("ColorAccentOn") }
+        static var accent: ThemeColor { .accent }
+        /// Accent-coloured text and small marks (links, the emphasised adherence figure).
+        static var accentStrong: ThemeColor { .contentLink }
+        static var accentSoft: ThemeColor { .tone(.accent, .subtleFill) }
+        static var accentOn: ThemeColor { .contentOnAccent }
 
-        static var statusUpcoming: SwiftUI.Color { SwiftUI.Color("ColorStatusUpcoming") }
-        static var statusUpcomingSoft: SwiftUI.Color { SwiftUI.Color("ColorStatusUpcomingSoft") }
-        static var statusDue: SwiftUI.Color { SwiftUI.Color("ColorStatusDue") }
-        static var statusDueSoft: SwiftUI.Color { SwiftUI.Color("ColorStatusDueSoft") }
-        static var statusOverdue: SwiftUI.Color { SwiftUI.Color("ColorStatusOverdue") }
-        static var statusOverdueSoft: SwiftUI.Color { SwiftUI.Color("ColorStatusOverdueSoft") }
-        static var statusTaken: SwiftUI.Color { SwiftUI.Color("ColorStatusTaken") }
-        static var statusTakenSoft: SwiftUI.Color { SwiftUI.Color("ColorStatusTakenSoft") }
-        static var statusLate: SwiftUI.Color { SwiftUI.Color("ColorStatusLate") }
-        static var statusLateSoft: SwiftUI.Color { SwiftUI.Color("ColorStatusLateSoft") }
-        static var statusSkipped: SwiftUI.Color { SwiftUI.Color("ColorStatusSkipped") }
-        static var statusSkippedSoft: SwiftUI.Color { SwiftUI.Color("ColorStatusSkippedSoft") }
-        static var statusSnoozed: SwiftUI.Color { SwiftUI.Color("ColorStatusSnoozed") }
-        static var statusSnoozedSoft: SwiftUI.Color { SwiftUI.Color("ColorStatusSnoozedSoft") }
+        /// Status colours by status (`DoseStatus.tone`): content and subtle fill.
+        static var statusUpcoming: ThemeColor { DoseStatus.upcoming.themeColor }
+        static var statusUpcomingSoft: ThemeColor { DoseStatus.upcoming.themeSoftColor }
+        static var statusDue: ThemeColor { DoseStatus.due.themeColor }
+        static var statusDueSoft: ThemeColor { DoseStatus.due.themeSoftColor }
+        static var statusOverdue: ThemeColor { DoseStatus.overdue.themeColor }
+        static var statusOverdueSoft: ThemeColor { DoseStatus.overdue.themeSoftColor }
+        static var statusTaken: ThemeColor { DoseStatus.takenOnTime.themeColor }
+        static var statusTakenSoft: ThemeColor { DoseStatus.takenOnTime.themeSoftColor }
+        static var statusLate: ThemeColor { DoseStatus.takenLate.themeColor }
+        static var statusLateSoft: ThemeColor { DoseStatus.takenLate.themeSoftColor }
+        static var statusSkipped: ThemeColor { DoseStatus.skipped.themeColor }
+        static var statusSkippedSoft: ThemeColor { DoseStatus.skipped.themeSoftColor }
+        static var statusSnoozed: ThemeColor { DoseStatus.snoozed.themeColor }
+        static var statusSnoozedSoft: ThemeColor { DoseStatus.snoozed.themeSoftColor }
 
         /// Per-medication avatar tint, parameterized by a hue angle (0..<360) derived from
         /// the medication's identity (see `Medication.avatarHue`) — mirrors the source
         /// design's `Avatar` component, which computes `background/color/border` from a
         /// single `hue` value per medication rather than a fixed palette. Computed at
-        /// runtime (not asset-catalog-backed) since hue is continuous, not a fixed set.
+        /// runtime since hue is continuous, not a fixed set; Atelier has no hue avatar.
         static func avatarTint(hueDegrees: Double, dark: Bool) -> AvatarTint {
             AvatarTint(
                 background: oklch(lightness: dark ? 0.32 : 0.9, chroma: dark ? 0.05 : 0.045, hueDegrees: hueDegrees),
@@ -55,36 +57,12 @@ extension Theme {
 }
 
 struct AvatarTint {
-    let background: Color
-    let foreground: Color
-    let border: Color
+    let background: SwiftUI.Color
+    let foreground: SwiftUI.Color
+    let border: SwiftUI.Color
 }
 
-/// OKLCH → sRGB conversion (Björn Ottosson's OKLab formulation). Used only for the
-/// continuous-hue avatar tint above; every other token is precomputed into the asset
-/// catalog since it only ever takes two fixed values (light/dark).
-private nonisolated func oklch(lightness L: Double, chroma C: Double, hueDegrees: Double) -> Color {
-    let h = hueDegrees * .pi / 180
-    let a = C * cos(h)
-    let b = C * sin(h)
-
-    let l_ = L + 0.3963377774 * a + 0.2158037573 * b
-    let m_ = L - 0.1055613458 * a - 0.0638541728 * b
-    let s_ = L - 0.0894841775 * a - 1.2914855480 * b
-
-    let l = l_ * l_ * l_
-    let m = m_ * m_ * m_
-    let s = s_ * s_ * s_
-
-    let rLin = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
-    let gLin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
-    let bLin = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
-
-    func toSRGB(_ c: Double) -> Double {
-        let clamped = min(max(c, 0), 1)
-        let v = clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * pow(clamped, 1 / 2.4) - 0.055
-        return min(max(v, 0), 1)
-    }
-
-    return Color(red: toSRGB(rLin), green: toSRGB(gLin), blue: toSRGB(bLin))
+/// An avatar colour at OKLCH lightness/chroma/hue, through Atelier's OKLab conversion (gamut-mapped into sRGB).
+private nonisolated func oklch(lightness: Double, chroma: Double, hueDegrees: Double) -> SwiftUI.Color {
+    SwiftUI.Color(OKLCH(l: lightness, c: chroma, h: hueDegrees).colorValue(in: .sRGB))
 }

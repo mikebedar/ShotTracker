@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// "How this schedule works": one short paragraph per topic (`ScheduleSummary`).

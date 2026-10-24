@@ -8,7 +8,7 @@ extension XCUIApplication {
     /// `trip` (with `twoZones`): the demo is planned on its home clocks as if the phone had
     /// just landed, with two medications on non-default travel options (`-demoTrip`).
     /// `deviceTimeZone` alone pins the device's zone (a deterministic home for new meds).
-    static func launchedForTesting(seedDemoData: Bool = false, twoZones: Bool = false, trip: Bool = false, deviceTimeZone: String? = nil) -> XCUIApplication {
+    static func launchedForTesting(seedDemoData: Bool = false, twoZones: Bool = false, trip: Bool = false, deviceTimeZone: String? = nil, arguments: [String] = []) -> XCUIApplication {
         // A previous run can leave the simulator in landscape, where the tab bar isn't a
         // tab bar any more.
         XCUIDevice.shared.orientation = .portrait
@@ -23,6 +23,7 @@ extension XCUIApplication {
         } else if let deviceTimeZone {
             app.launchArguments += ["-deviceTimeZone", deviceTimeZone]
         }
+        app.launchArguments += arguments
         app.launch()
         return app
     }

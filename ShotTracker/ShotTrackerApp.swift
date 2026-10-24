@@ -5,6 +5,7 @@
 //  Created by Michael Bedar on 4/11/26.
 //
 
+import Atelier
 import SwiftUI
 import SwiftData
 import UserNotifications
@@ -12,6 +13,8 @@ import UserNotifications
 @main
 struct ShotTrackerApp: App {
     @State private var dependencies = AppDependencies.shared
+    /// Theme, accent, light/dark, text size, motion and haptics (Settings → Appearance).
+    @State private var appearance = AppAppearance.makePreferences()
 
     /// Kept alive for the app's lifetime — the notification center holds its delegate weakly.
     private let notificationActionHandler = NotificationActionHandler()
@@ -38,6 +41,12 @@ struct ShotTrackerApp: App {
         WindowGroup {
             ContentView()
                 .environment(\.appDependencies, dependencies)
+                // Outside the TabView: toasts (with Undo), confirmations and errors for every tab.
+                .atelierPresenter(toastPlacement: AppAppearance.toastPlacement)
+                // Outermost: the theme every view and component reads.
+                .atelierPreferences(appearance)
+                .task { AppAppearance.publishToWidget(appearance.values) }
+                .onChange(of: appearance.values) { _, values in AppAppearance.publishToWidget(values) }
                 // UI tests get a throwaway suite for @AppStorage too (Today's list/calendar mode).
                 .defaultAppStorage(LaunchOptions.defaults)
         }

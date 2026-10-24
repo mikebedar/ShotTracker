@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Minimal row for the long-range "Coming Up" list — icon + name + time only, no

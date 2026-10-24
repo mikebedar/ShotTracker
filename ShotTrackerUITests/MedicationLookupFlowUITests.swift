@@ -44,10 +44,9 @@ final class MedicationLookupFlowUITests: XCTestCase {
 
         let deleteButton = app.buttons["button.deleteMedication"]
         XCTAssertTrue(app.scrollUntilHittable(deleteButton))
+        // No confirmation: deleting archives it, with Undo in the toast.
         deleteButton.tap()
-        let confirmDelete = app.alerts.buttons["Delete"]
-        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5))
-        confirmDelete.tap()
+        XCTAssertTrue(app.staticTexts["Archived FUROSEMIDE"].waitForExistence(timeout: 5))
 
         XCTAssertTrue(app.navigationBars["Medications"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["FUROSEMIDE"].exists, "Deleted medication should no longer appear in the list")

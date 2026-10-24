@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Generic themed button used for dose actions (and reusable anywhere else a
@@ -51,14 +52,14 @@ private struct ActionButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.7 : 1)
     }
 
-    private var background: Color {
+    private var background: AnyShapeStyle {
         switch kind {
-        case .primary(let urgent): urgent ? Theme.Color.statusOverdue : Theme.Color.accent
-        case .secondary, .quiet: .clear
+        case .primary(let urgent): AnyShapeStyle(urgent ? Theme.Color.statusOverdue : Theme.Color.accent)
+        case .secondary, .quiet: AnyShapeStyle(.clear)
         }
     }
 
-    private var foreground: Color {
+    private var foreground: ThemeColor {
         switch kind {
         case .primary: Theme.Color.accentOn
         case .secondary: Theme.Color.textPrimary
@@ -66,7 +67,7 @@ private struct ActionButtonStyle: ButtonStyle {
         }
     }
 
-    private var borderColor: Color {
+    private var borderColor: ThemeColor {
         switch kind {
         case .primary(let urgent): urgent ? Theme.Color.statusOverdue : Theme.Color.accent
         case .secondary: Theme.Color.borderStrong

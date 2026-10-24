@@ -184,4 +184,33 @@ final class ScreenshotTourUITests: XCTestCase {
         sleep(1)
         shot("d12-settings-time-zones")
     }
+
+    /// Atelier's presenter toasts: Take with Undo where ShotTracker puts them (above the tab bar) and at the top
+    /// (Atelier's iPhone default, `-toastPlacement top`), and the canary theme (what ignores the theme stands out).
+    @MainActor
+    func testAtelierTour() throws {
+        let suffix = ProcessInfo.processInfo.environment["SCREENSHOT_SUFFIX"] ?? ""
+        for (name, arguments) in [("a01-toast-bottom", [String]()), ("a02-toast-top", ["-toastPlacement", "top"])] {
+            let app = XCUIApplication.launchedForTesting(seedDemoData: true, arguments: arguments)
+            let take = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'button.takeDose.'")).firstMatch
+            XCTAssertTrue(take.waitForExistence(timeout: 15))
+            take.tap()
+            XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Marked '")).firstMatch.waitForExistence(timeout: 5))
+            shoot(app, name + suffix)
+            app.terminate()
+        }
+        let canary = XCUIApplication.launchedForTesting(seedDemoData: true, arguments: ["-atelierTheme", "canary"])
+        XCTAssertTrue(canary.tab("tab.today").waitForExistence(timeout: 15))
+        sleep(1)
+        shoot(canary, "a03-canary-today" + suffix)
+        canary.tab("tab.medications").tap()
+        sleep(1)
+        shoot(canary, "a04-canary-medications" + suffix)
+        canary.tab("tab.history").tap()
+        sleep(1)
+        shoot(canary, "a05-canary-history" + suffix)
+        canary.tab("tab.settings").tap()
+        sleep(1)
+        shoot(canary, "a06-canary-settings" + suffix)
+    }
 }

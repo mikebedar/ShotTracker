@@ -38,13 +38,20 @@ final class MedicationArchiveUITests: XCTestCase {
         let takeButton = app.buttons.matching(NSPredicate(format: "label == %@", "Take")).firstMatch
         XCTAssertTrue(takeButton.waitForExistence(timeout: 5), "Newly added daily medication should have a scheduled dose today")
         takeButton.tap()
+        // The Take's toast floats above the tab bar, over the bottom of the list, where Delete is: let it go first.
+        let taken = app.staticTexts["Marked \(medicationName) as taken"]
+        XCTAssertTrue(taken.waitForExistence(timeout: 5))
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: taken)
+        wait(for: [gone], timeout: 15)
 
         // Back to the medication detail, then archive it.
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let deleteButton = app.buttons["button.deleteMedication"]
-        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        // The last row of a lazy List: scroll to it (the "How this schedule works" section is above it).
+        XCTAssertTrue(app.scrollUntilHittable(deleteButton))
+        // No confirmation alert: deleting archives it and the toast offers Undo.
         deleteButton.tap()
-        app.alerts.buttons["Delete"].tap()
+        XCTAssertTrue(app.staticTexts["Archived \(medicationName)"].waitForExistence(timeout: 5))
 
         // Gone from the active medications list.
         XCTAssertTrue(app.navigationBars["Medications"].waitForExistence(timeout: 5))
@@ -57,5 +64,26 @@ final class MedicationArchiveUITests: XCTestCase {
         app.tab("tab.history").tap()
         let historyEntry = app.staticTexts[medicationName]
         XCTAssertTrue(historyEntry.waitForExistence(timeout: 5), "Archived medication's dose history should still appear in History")
+    }
+
+    /// Delete from the list's swipe, then Undo in the toast: the medication is back in the active list.
+    @MainActor
+    func testDeleteIsUndoable() throws {
+        let app = XCUIApplication.launchedForTesting()
+        app.addManualMedication(named: medicationName)
+
+        let row = app.staticTexts[medicationName]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.swipeLeft()
+        let delete = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'button.deleteMedication.'")).firstMatch
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        delete.tap()
+
+        XCTAssertTrue(app.staticTexts["Archived \(medicationName)"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts[medicationName].waitForExistence(timeout: 2), "Gone from the active list")
+        let undo = app.buttons["Undo"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        undo.tap()
+        XCTAssertTrue(app.staticTexts[medicationName].waitForExistence(timeout: 5), "Undo brings it back")
     }
 }

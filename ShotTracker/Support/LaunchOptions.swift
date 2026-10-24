@@ -20,6 +20,9 @@ import Foundation
 /// - `-demoHomeTimeZone <identifier>`: the zone `DemoData`'s schedules are written in
 ///   (default: the device's), e.g. `America/New_York` with `-deviceTimeZone Europe/Paris`
 ///   for a two-zone Today.
+/// - `-atelierTheme <id>`: start on that Atelier theme, never stored (`shottracker`, `system`, `warm`, `studio`,
+///   `contrast`, or `canary`, which paints everything the theme reaches in loud colours).
+/// - `-toastPlacement top`: toasts at the top (Atelier's iPhone default) instead of above the tab bar.
 nonisolated enum LaunchOptions {
     #if DEBUG
     private static let arguments = ProcessInfo.processInfo.arguments
@@ -30,6 +33,8 @@ nonisolated enum LaunchOptions {
     static let demoTrip = arguments.contains("-demoTrip")
     static let deviceTimeZone = value(after: "-deviceTimeZone").flatMap(TimeZone.init(identifier:))
     static let demoHomeTimeZone = value(after: "-demoHomeTimeZone").flatMap(TimeZone.init(identifier:))
+    static let atelierThemeID = value(after: "-atelierTheme")
+    static let toastPlacementTop = value(after: "-toastPlacement") == "top"
 
     private static func value(after flag: String) -> String? {
         guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }

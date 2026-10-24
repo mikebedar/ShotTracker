@@ -1,3 +1,4 @@
+import Atelier
 import SwiftData
 import SwiftUI
 
@@ -13,13 +14,13 @@ struct TodayView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage("todayView.mode") private var viewModeRawValue = TodayViewMode.list.rawValue
     @State private var selectedCalendarDate = Calendar.current.startOfDay(for: .now)
-    @State private var toastMessage: String?
-    @State private var takeConfirmation: TakeConfirmation?
+    @Environment(\.presenter) private var presenter
+    @Environment(\.undoManager) private var undoManager
+    /// The haptic of the last dose action (Take: success, Skip: warning, Snooze/Undo: a light tap).
+    @State private var feedbackPulse: FeedbackPulse?
 
-    private struct TakeConfirmation: Identifiable {
-        let id = UUID()
-        let dose: ScheduledDose
-        let message: String
+    private var performer: DoseActionPerformer {
+        DoseActionPerformer(presenter: presenter, dependencies: dependencies, context: modelContext, undoManager: undoManager)
     }
 
     /// Roughly one `SimpleDoseRow` (~52pt artwork + text) plus the section's vertical
@@ -125,20 +126,8 @@ struct TodayView: View {
                     .accessibilityIdentifier(AccessibilityID.todayViewModeSwitcher)
                 }
             }
-            .alert(
-                "Take dose early?",
-                isPresented: Binding(
-                    get: { takeConfirmation != nil },
-                    set: { if !$0 { takeConfirmation = nil } }
-                ),
-                presenting: takeConfirmation
-            ) { confirmation in
-                Button("Take Anyway") { performTake(confirmation.dose) }
-                Button("Cancel", role: .cancel) {}
-            } message: { confirmation in
-                Text(confirmation.message)
-            }
         }
+        .feedback(feedbackPulse)
     }
 
     private var navigationTitle: String {
@@ -206,7 +195,6 @@ struct TodayView: View {
         .refreshable {
             dependencies.refreshSchedules(context: modelContext)
         }
-        .toast($toastMessage)
     }
 
     /// True when nothing needs action today (ignores the Completed bucket).
@@ -329,34 +317,24 @@ struct TodayView: View {
         if let medication = dose.medication,
            let regimen = medication.regimens.active,
            let warning = DoseRescheduling.minimumIntervalWarning(for: medication, regimen: regimen) {
-            takeConfirmation = TakeConfirmation(dose: dose, message: warning.message)
+            Task {
+                if await presenter.confirm(.takeEarly(warning.message)) { perform(.taken, dose) }
+            }
         } else {
-            performTake(dose)
+            perform(.taken, dose)
         }
     }
 
-    private func performTake(_ dose: ScheduledDose) {
-        dependencies.recordDoseAction(.taken, dose: dose, context: modelContext)
-        toastMessage = "Marked \(dose.medication?.displayName ?? "dose") as taken"
-    }
+    private func snoozeDose(_ dose: ScheduledDose) { perform(.snoozed, dose) }
 
-    private func snoozeDose(_ dose: ScheduledDose) {
-        dependencies.recordDoseAction(.snoozed, dose: dose, context: modelContext)
-        let name = dose.medication?.displayName ?? "dose"
-        let minutes = dose.medication?.regimens.active?.activeReminderPolicy?.defaultSnoozeMinutes ?? 20
-        toastMessage = "Snoozed \(name) \(SnoozeWording.duration(minutes: minutes))"
-    }
+    private func skipDose(_ dose: ScheduledDose) { perform(.skipped, dose) }
 
-    private func skipDose(_ dose: ScheduledDose) {
-        dependencies.recordDoseAction(.skipped, dose: dose, context: modelContext)
-        toastMessage = "Skipped \(dose.medication?.displayName ?? "dose")"
+    private func perform(_ action: DoseActionType, _ dose: ScheduledDose) {
+        if let role = performer.perform(action, on: dose) { feedbackPulse = FeedbackPulse(role: role) }
     }
 
     private func undoDose(_ dose: ScheduledDose) {
-        let wasSnooze = dose.lastAction == .snoozed
-        dependencies.recordDoseAction(.pending, dose: dose, context: modelContext)
-        let name = dose.medication?.displayName ?? "dose"
-        toastMessage = wasSnooze ? "Took back the snooze on \(name)" : "Undid \(name)"
+        if let role = performer.undo(dose) { feedbackPulse = FeedbackPulse(role: role) }
     }
 }
 

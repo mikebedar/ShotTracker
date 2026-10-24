@@ -1,3 +1,4 @@
+import Atelier
 import SwiftData
 import SwiftUI
 
@@ -30,7 +31,7 @@ struct MedicationDrugInfoView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                .listRowBackground(Theme.Color.statusOverdueSoft)
+                .listRowBackground(Rectangle().fill(Theme.Color.statusOverdueSoft))
             }
 
             labelSection(title: "Description", paragraphs: info?.drugDescription)

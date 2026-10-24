@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Medication artwork: the medication's photo if set, otherwise a colored-letter
@@ -48,7 +49,7 @@ struct MedicationArtworkView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.avatar, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.avatar, style: .continuous)
-                .strokeBorder(medication.imageData == nil ? tint.border : Theme.Color.border, lineWidth: Theme.BorderWidth.regular)
+                .strokeBorder(medication.imageData == nil ? AnyShapeStyle(tint.border) : AnyShapeStyle(Theme.Color.border), lineWidth: Theme.BorderWidth.regular)
         )
         .accessibilityHidden(true)
     }

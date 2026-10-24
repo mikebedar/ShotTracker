@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Friendly themed banner for "nothing to do" states — e.g. the Today screen when
@@ -6,7 +7,7 @@ struct EmptyStateBanner: View {
     let title: String
     let systemImage: String
     var subtitle: String?
-    var tint: Color = Theme.Color.statusTaken
+    var tint: ThemeColor = Theme.Color.statusTaken
 
     var body: some View {
         VStack(spacing: Theme.Spacing.s2) {

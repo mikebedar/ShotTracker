@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 import UIKit
 
@@ -28,7 +29,8 @@ struct DoseCalendarView: UIViewRepresentable {
         calendarView.delegate = context.coordinator
         calendarView.calendar = Calendar.current
         calendarView.locale = Locale.current
-        calendarView.tintColor = UIColor(Theme.Color.accent)
+        context.coordinator.environment = context.environment
+        calendarView.tintColor = context.coordinator.uiColor(Theme.Color.accent)
         calendarView.backgroundColor = .clear
         calendarView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         calendarView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
@@ -63,6 +65,9 @@ struct DoseCalendarView: UIViewRepresentable {
         // or their old dot stays drawn.
         let previousDays = context.coordinator.summaryDateComponents
         context.coordinator.update(parent: self)
+        // The theme (Settings → Appearance) may have changed.
+        context.coordinator.environment = context.environment
+        uiView.tintColor = context.coordinator.uiColor(Theme.Color.accent)
 
         if let selection = uiView.selectionBehavior as? UICalendarSelectionSingleDate {
             let components = context.coordinator.dateComponents(for: selectedDate)
@@ -103,6 +108,8 @@ struct DoseCalendarView: UIViewRepresentable {
         var parent: DoseCalendarView
         weak var calendarView: UICalendarView?
         var lastSelectedMonth: DateComponents?
+        /// The SwiftUI environment the theme's colours resolve in.
+        var environment = EnvironmentValues()
         private var summaryByKey: [String: CalendarDaySummary] = [:]
 
         init(parent: DoseCalendarView) {
@@ -122,7 +129,7 @@ struct DoseCalendarView: UIViewRepresentable {
             guard let date = calendarView.calendar.date(from: dateComponents) else { return nil }
             guard let summary = summaryByKey[key(for: date)] else { return nil }
 
-            let color = UIColor(summary.primaryStatus.themeColor).withAlphaComponent(summary.isForecasted ? 0.45 : 1)
+            let color = uiColor(summary.primaryStatus.themeColor).withAlphaComponent(summary.isForecasted ? 0.45 : 1)
             let size: UICalendarView.DecorationSize = summary.count > 2 ? .large : .medium
             return .default(color: color, size: size)
         }
@@ -147,6 +154,16 @@ struct DoseCalendarView: UIViewRepresentable {
 
         func monthComponents(for date: Date) -> DateComponents {
             Calendar.current.dateComponents([.calendar, .year, .month], from: date)
+        }
+
+        /// A theme colour as a dynamic `UIColor`: resolved for light or dark as UIKit asks.
+        func uiColor(_ style: ThemeColor) -> UIColor {
+            let environment = environment
+            return UIColor { traits in
+                var resolved = environment
+                resolved.colorScheme = traits.userInterfaceStyle == .dark ? .dark : .light
+                return UIColor(style.resolve(in: resolved))
+            }
         }
 
         private func key(for date: Date) -> String {

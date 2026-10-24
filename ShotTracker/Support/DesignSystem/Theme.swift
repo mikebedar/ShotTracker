@@ -1,4 +1,5 @@
 import SwiftUI
+import Atelier
 
 /// Design-token namespace: spacing, radii, and semantic typography.
 /// Colors live in `Theme+Color.swift` since they're backed by the asset catalog.
@@ -48,8 +49,8 @@ enum Theme {
 private struct ThemedBorderModifier: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
 
-    let color: Color
-    let strongColor: Color
+    let color: ThemeColor
+    let strongColor: ThemeColor
     let cornerRadius: CGFloat
 
     func body(content: Content) -> some View {
@@ -67,8 +68,8 @@ extension View {
     /// for components (like `StatusPill`) whose border is a semantic color rather than the
     /// generic border/border-strong pair.
     func themedBorder(
-        color: Color = Theme.Color.border,
-        strongColor: Color = Theme.Color.borderStrong,
+        color: ThemeColor = Theme.Color.border,
+        strongColor: ThemeColor = Theme.Color.borderStrong,
         cornerRadius: CGFloat
     ) -> some View {
         modifier(ThemedBorderModifier(color: color, strongColor: strongColor, cornerRadius: cornerRadius))
@@ -78,7 +79,7 @@ extension View {
 private struct ThemedCapsuleBorderModifier: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
 
-    let color: Color
+    let color: ThemeColor
 
     func body(content: Content) -> some View {
         let width = contrast == .increased ? Theme.BorderWidth.highContrast : Theme.BorderWidth.regular
@@ -89,7 +90,7 @@ private struct ThemedCapsuleBorderModifier: ViewModifier {
 extension View {
     /// Contrast-aware capsule border in a single semantic `color` (the design specs pill
     /// borders as "currentColor", i.e. the status's own color — not the generic border pair).
-    func themedCapsuleBorder(_ color: Color) -> some View {
+    func themedCapsuleBorder(_ color: ThemeColor) -> some View {
         modifier(ThemedCapsuleBorderModifier(color: color))
     }
 }

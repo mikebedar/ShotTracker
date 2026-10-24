@@ -1,3 +1,4 @@
+import Atelier
 import SwiftData
 import SwiftUI
 
@@ -7,12 +8,12 @@ struct MedicationScheduledDosesView: View {
     @Environment(\.modelContext) private var modelContext
     let medication: Medication
 
-    @State private var takeConfirmation: TakeConfirmation?
+    @Environment(\.presenter) private var presenter
+    @Environment(\.undoManager) private var undoManager
+    @State private var feedbackPulse: FeedbackPulse?
 
-    private struct TakeConfirmation: Identifiable {
-        let id = UUID()
-        let dose: ScheduledDose
-        let message: String
+    private var performer: DoseActionPerformer {
+        DoseActionPerformer(presenter: presenter, dependencies: dependencies, context: modelContext, undoManager: undoManager)
     }
 
     private var upcomingDoses: [ScheduledDose] {
@@ -85,9 +86,9 @@ struct MedicationScheduledDosesView: View {
                                 status: status,
                                 onTake: { takeDose(dose) },
                                 onSnooze: DoseActions.canSnooze(dose, status: status)
-                                    ? { dependencies.recordDoseAction(.snoozed, dose: dose, context: modelContext) }
+                                    ? { perform(.snoozed, dose) }
                                     : nil,
-                                onSkip: { dependencies.recordDoseAction(.skipped, dose: dose, context: modelContext) }
+                                onSkip: { perform(.skipped, dose) }
                             )
                         }
                     }
@@ -95,19 +96,7 @@ struct MedicationScheduledDosesView: View {
             }
         }
         .navigationTitle("Scheduled")
-        .alert(
-            "Take dose early?",
-            isPresented: Binding(
-                get: { takeConfirmation != nil },
-                set: { if !$0 { takeConfirmation = nil } }
-            ),
-            presenting: takeConfirmation
-        ) { confirmation in
-            Button("Take Anyway") { dependencies.recordDoseAction(.taken, dose: confirmation.dose, context: modelContext) }
-            Button("Cancel", role: .cancel) {}
-        } message: { confirmation in
-            Text(confirmation.message)
-        }
+        .feedback(feedbackPulse)
     }
 
     /// "Due", or with a snooze "Snoozed 20 min · reminder at 10:20 AM" / "Due · snoozed
@@ -124,9 +113,15 @@ struct MedicationScheduledDosesView: View {
     private func takeDose(_ dose: ScheduledDose) {
         if let regimen = medication.regimens.active,
            let warning = DoseRescheduling.minimumIntervalWarning(for: medication, regimen: regimen) {
-            takeConfirmation = TakeConfirmation(dose: dose, message: warning.message)
+            Task {
+                if await presenter.confirm(.takeEarly(warning.message)) { perform(.taken, dose) }
+            }
         } else {
-            dependencies.recordDoseAction(.taken, dose: dose, context: modelContext)
+            perform(.taken, dose)
         }
+    }
+
+    private func perform(_ action: DoseActionType, _ dose: ScheduledDose) {
+        if let role = performer.perform(action, on: dose) { feedbackPulse = FeedbackPulse(role: role) }
     }
 }

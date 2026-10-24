@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Small uppercase date label used inside the long-range "Coming Up" list.

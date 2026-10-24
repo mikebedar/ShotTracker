@@ -10,6 +10,7 @@
 		9CF41801000000000000000B /* TodayWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF41801000000000000000A /* TodayWidgetSnapshot.swift */; };
 		9CF418010000000000000012 /* ZonedTimeFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF418010000000000000011 /* ZonedTimeFormatter.swift */; };
 		9CF41801000000000000F014 /* SlotClockLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF41801000000000000F013 /* SlotClockLabel.swift */; };
+		9CF41801A7E1000000000402 /* ShotTrackerTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF41801A7E1000000000401 /* ShotTrackerTheme.swift */; };
 		9CF41801000000000000000D /* ShotTrackerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9CF418010000000000000002 /* ShotTrackerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9CF41801A7E1000000000101 /* Atelier in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF41801A7E1000000000201 /* Atelier */; };
 		9CF41801A7E1000000000102 /* AtelierTestingCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF41801A7E1000000000202 /* AtelierTestingCore */; };
@@ -62,6 +63,7 @@
 		9CF41801000000000000000A /* TodayWidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TodayWidgetSnapshot.swift; path = ShotTracker/Shared/Widget/TodayWidgetSnapshot.swift; sourceTree = SOURCE_ROOT; };
 		9CF418010000000000000011 /* ZonedTimeFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ZonedTimeFormatter.swift; path = ShotTracker/Shared/Widget/ZonedTimeFormatter.swift; sourceTree = SOURCE_ROOT; };
 		9CF41801000000000000F013 /* SlotClockLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SlotClockLabel.swift; path = ShotTracker/Shared/Widget/SlotClockLabel.swift; sourceTree = SOURCE_ROOT; };
+		9CF41801A7E1000000000401 /* ShotTrackerTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShotTrackerTheme.swift; path = ShotTracker/Shared/Widget/ShotTrackerTheme.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -155,6 +157,7 @@
 				9CF41801000000000000000A /* TodayWidgetSnapshot.swift */,
 				9CF418010000000000000011 /* ZonedTimeFormatter.swift */,
 				9CF41801000000000000F013 /* SlotClockLabel.swift */,
+				9CF41801A7E1000000000401 /* ShotTrackerTheme.swift */,
 				9CF417792F8A89BF00E9BDF3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -379,6 +382,7 @@
 				9CF41801000000000000000B /* TodayWidgetSnapshot.swift in Sources */,
 				9CF418010000000000000012 /* ZonedTimeFormatter.swift in Sources */,
 				9CF41801000000000000F014 /* SlotClockLabel.swift in Sources */,
+				9CF41801A7E1000000000402 /* ShotTrackerTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Section title used above dose-card groups. `.attention` tone (used for the
@@ -30,7 +31,7 @@ struct SectionHeader: View {
                     .font(Theme.Font.text(.caption).weight(.bold))
                     .padding(.horizontal, Theme.Spacing.s2)
                     .padding(.vertical, 3)
-                    .background(tone == .attention ? Theme.Color.statusOverdueSoft : .clear, in: Capsule())
+                    .background(tone == .attention ? AnyShapeStyle(Theme.Color.statusOverdueSoft) : AnyShapeStyle(.clear), in: Capsule())
                     .foregroundStyle(tone == .attention ? Theme.Color.statusOverdue : Theme.Color.textTertiary)
             }
         }

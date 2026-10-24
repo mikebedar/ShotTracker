@@ -1,3 +1,4 @@
+import Atelier
 import CoreTransferable
 import SwiftData
 import SwiftUI
@@ -194,7 +195,7 @@ struct MedicationHistoryView: View {
                 .padding(.horizontal, Theme.Spacing.s3)
                 .padding(.vertical, Theme.Spacing.s2)
                 .background(
-                    Capsule().fill(isSelected ? Theme.Color.accent : Theme.Color.accentSoft.opacity(0.4))
+                    Capsule().fill(isSelected ? AnyShapeStyle(Theme.Color.accent) : AnyShapeStyle(Theme.Color.accentSoft.opacity(0.4)))
                 )
         }
         .buttonStyle(.plain)

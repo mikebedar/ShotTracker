@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Colored capsule badge for a `DoseStatus`. Reuses `DoseStatus.title`/`.symbolName`/

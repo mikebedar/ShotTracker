@@ -1,3 +1,4 @@
+import Atelier
 import SwiftData
 import SwiftUI
 
@@ -10,7 +11,7 @@ struct MedicationListView: View {
     ) private var medications: [Medication]
     @Query(filter: #Predicate<Medication> { !$0.isActive }) private var archivedMedications: [Medication]
     @State private var isPresentingAddMedication = false
-    @State private var medicationPendingDeletion: Medication?
+    @Environment(\.presenter) private var presenter
 
     var body: some View {
         NavigationStack {
@@ -39,7 +40,8 @@ struct MedicationListView: View {
                         .accessibilityIdentifier(AccessibilityID.medicationRow(medication.id))
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
-                                medicationPendingDeletion = medication
+                                MedicationArchiving.archive(medication, presenter: presenter, dependencies: dependencies,
+                                                            context: modelContext)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -75,28 +77,7 @@ struct MedicationListView: View {
                     EditMedicationView()
                 }
             }
-            .alert(
-                "Delete \(medicationPendingDeletion?.displayName ?? "Medication")?",
-                isPresented: Binding(
-                    get: { medicationPendingDeletion != nil },
-                    set: { isPresented in if !isPresented { medicationPendingDeletion = nil } }
-                )
-            ) {
-                Button("Delete", role: .destructive) {
-                    deletePendingMedication()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This removes it from your medications list and stops future doses. Its dose and refill history stay in History.")
-            }
         }
-    }
-
-    private func deletePendingMedication() {
-        guard let medication = medicationPendingDeletion else { return }
-        medicationPendingDeletion = nil
-        try? MedicationRepository.archive(medication, in: modelContext)
-        dependencies.refreshSchedules(context: modelContext)
     }
 }
 

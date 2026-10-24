@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// The live travel example's destinations: a short list of cities around the world,

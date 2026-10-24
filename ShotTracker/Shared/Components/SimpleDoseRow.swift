@@ -1,3 +1,4 @@
+import Atelier
 import SwiftUI
 
 /// Condensed single-line dose row (artwork + name + time + compact status pill),

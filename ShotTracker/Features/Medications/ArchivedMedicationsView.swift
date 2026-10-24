@@ -1,3 +1,4 @@
+import Atelier
 import SwiftData
 import SwiftUI
 
@@ -7,6 +8,7 @@ import SwiftUI
 struct ArchivedMedicationsView: View {
     @Environment(\.appDependencies) private var dependencies
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.presenter) private var presenter
     @Query(
         filter: #Predicate<Medication> { !$0.isActive },
         sort: [SortDescriptor(\Medication.displayName)]
@@ -48,7 +50,6 @@ struct ArchivedMedicationsView: View {
     }
 
     private func reactivate(_ medication: Medication) {
-        try? MedicationRepository.unarchive(medication, in: modelContext)
-        dependencies.refreshSchedules(context: modelContext)
+        MedicationArchiving.reactivate(medication, presenter: presenter, dependencies: dependencies, context: modelContext)
     }
 }
