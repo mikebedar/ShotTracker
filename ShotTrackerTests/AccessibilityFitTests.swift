@@ -97,6 +97,20 @@ struct AccessibilityFitTests {
         #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
     }
 
+    /// Settings → Appearance: Atelier's own controls over ShotTracker's themes.
+    @Test func appearanceControlsFit() {
+        let preferences = AtelierPreferences(transient: ShotTrackerTheme.defaults, themes: ShotTrackerTheme.themes,
+                                             defaults: ShotTrackerTheme.defaults)
+        var failures: [String] = []
+        failures += check("ThemePicker", ThemePicker(preferences))
+        failures += check("AppearancePicker", AppearancePicker(preferences))
+        // Atelier's AccentPicker runs off a phone at AX sizes; Settings shows a menu there (AccentChoiceRow).
+        failures += check("AccentPicker", AccentPicker(preferences).dynamicTypeSize(...DynamicTypeSize.xxxLarge))
+        failures += check("TextSizePicker", TextSizePicker(preferences))
+        failures += check("FeedbackSettings", FeedbackSettings(preferences))
+        #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
+    }
+
     /// The probe isn't vacuous: it measures the card's marked text, and catches a name squeezed into a narrow column.
     @Test func theProbeSeesTheCardsText() throws {
         let (_, doses) = try fixture()

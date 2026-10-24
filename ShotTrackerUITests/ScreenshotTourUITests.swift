@@ -212,5 +212,37 @@ final class ScreenshotTourUITests: XCTestCase {
         canary.tab("tab.settings").tap()
         sleep(1)
         shoot(canary, "a06-canary-settings" + suffix)
+        canary.terminate()
+
+        // ShotTracker's theme: Settings → Appearance, the refill sheet, a card's swipe actions.
+        let app = XCUIApplication.launchedForTesting(seedDemoData: true)
+        let take = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'button.takeDose.'")).firstMatch
+        XCTAssertTrue(take.waitForExistence(timeout: 15))
+        print("TAKE-TRAITS selected=\(take.isSelected) label=\(take.label)")
+        let card = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'row.scheduledDose.'")).firstMatch
+        card.swipeLeft()
+        sleep(1)
+        shoot(app, "a07-swipe-skip" + suffix)
+        app.swipeDown()
+        sleep(1)
+        card.swipeRight()
+        sleep(1)
+        shoot(app, "a08-swipe-take" + suffix)
+        app.tab("tab.settings").tap()
+        let appearance = app.staticTexts["Appearance"].firstMatch
+        _ = app.scrollUntilHittable(appearance, maxSwipes: 15)
+        sleep(1)
+        shoot(app, "a09-settings-appearance" + suffix)
+        app.swipeUp()
+        sleep(1)
+        shoot(app, "a10-settings-appearance-more" + suffix)
+        app.tab("tab.medications").tap()
+        app.staticTexts["Lisinopril"].firstMatch.tap()
+        let refill = app.buttons["Log refill"]
+        if app.scrollUntilHittable(refill) {
+            refill.tap()
+            sleep(1)
+            shoot(app, "a11-refill-sheet" + suffix)
+        }
     }
 }

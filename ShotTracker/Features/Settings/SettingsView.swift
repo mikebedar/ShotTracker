@@ -42,8 +42,7 @@ struct SettingsView: View {
                         set: { preferencesStore.preferences.timeSensitiveByDefault = $0 }
                     ))
                     Text("Time-sensitive reminders can break through Focus and Do Not Disturb. Individual medications can override this in their settings.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .textRole(.doseDetail.colored(.secondary))
 
                     permissionRow
 
@@ -60,7 +59,7 @@ struct SettingsView: View {
 
                 Section {
                     ForEach(editableSlots) { slot in
-                        VStack(alignment: .leading, spacing: 4) {
+                        Column(alignment: .leading, spacing: .xs) {
                             Text(slot.title)
                                 .font(.subheadline.weight(.medium))
                             DatePicker(
@@ -74,7 +73,7 @@ struct SettingsView: View {
                                 displayedComponents: .hourAndMinute
                             )
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, .xs)
                     }
                 } header: {
                     Text("Routine Windows")
@@ -100,7 +99,27 @@ struct SettingsView: View {
                 } footer: {
                     Text("When off, the widget hides medication names — it shows only times, counts, and status, so nothing sensitive appears on your home screen.")
                 }
+
+                // Atelier's appearance controls, bound to the preferences the root installed (and handed to the widget).
+                Section {
+                    ThemePicker()
+                    AppearancePicker()
+                    AccentChoiceRow()
+                    TextSizePicker()
+                } header: {
+                    Text("Appearance")
+                } footer: {
+                    Text("Text size moves from the size you set in Settings → Accessibility → Display & Text Size, up or down a step at a time. The widget follows the theme and accent.")
+                }
+
+                Section {
+                    FeedbackSettings()
+                } header: {
+                    Text("Haptics & Sounds")
+                }
             }
+            // Atelier's grouped form: rows and grounds in the theme (a plain Form stayed system grey under any theme).
+            .formStyle(.atelier)
             .navigationTitle("Settings")
             .task {
                 await dependencies.notificationScheduler.refreshAuthorizationStatus()
@@ -127,8 +146,7 @@ struct SettingsView: View {
                 Label("Notifications are turned off for ShotTracker", systemImage: "bell.slash.fill")
                     .foregroundStyle(Theme.Color.statusOverdue)
                 Text("Reminders can't arrive until you allow them in the Settings app.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .textRole(.doseDetail.colored(.secondary))
                 Button("Open Notification Settings") {
                     if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
                         openURL(url)
@@ -162,5 +180,30 @@ struct SettingsView: View {
                 preferencesStore.setDefaultWindow(window, for: slot)
             }
         )
+    }
+}
+
+/// The accent: Atelier's swatch row, or at the accessibility sizes (where that row runs off a phone: 141 pt past a
+/// 375 pt screen at AX5) a menu of the same choices, which wraps like any Form row.
+private struct AccentChoiceRow: View {
+    @Environment(AtelierPreferences.self) private var installed: AtelierPreferences?
+    @Environment(\.themeContext) private var ctx
+
+    var body: some View {
+        if ctx.isAccessibilitySize, let installed {
+            @Bindable var preferences = installed
+            Picker("Accent color", selection: $preferences.accent) {
+                Text(AccentChoice.theme.title).tag(AccentChoice.theme)
+                ForEach(AccentPreset.allCases) { preset in
+                    Text(preset.title).tag(AccentChoice.preset(preset))
+                }
+                if case .custom = preferences.accent {
+                    Text(preferences.accent.title).tag(preferences.accent)
+                }
+            }
+            .pickerStyle(.menu)
+        } else {
+            AccentPicker()
+        }
     }
 }
