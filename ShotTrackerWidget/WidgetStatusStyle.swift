@@ -1,19 +1,12 @@
+import AtelierTheme
 import SwiftUI
 
-/// Self-contained status → color/symbol mapping for the widget. Kept separate from the
-/// app's `DoseStatus+Theme` (which depends on the Theme asset catalog) so the widget target
-/// links nothing but SwiftUI. Colors are semantic and visually track the app's status hues;
-/// symbols mirror `DoseStatus.symbolName`.
+/// Status → colour/symbol for the widget. The colour is the status's Atelier tone (`WidgetDoseStatus.tone`, the
+/// app's `DoseStatus.tone` mapping) in the person's theme, which the app hands over through the App Group; the widget
+/// links only the `AtelierTheme` product (never `Atelier`). Symbols mirror `DoseStatus.symbolName`.
 enum WidgetStatusStyle {
-    static func color(_ status: WidgetDoseStatus) -> Color {
-        switch status {
-        case .overdue: .red
-        case .due: .blue
-        case .upcoming: .secondary
-        case .snoozed: .indigo
-        case .takenOnTime, .takenLate: .green
-        case .skipped: .gray
-        }
+    static func color(_ status: WidgetDoseStatus) -> ThemeColor {
+        .tone(status.tone)
     }
 
     static func symbol(_ status: WidgetDoseStatus) -> String {

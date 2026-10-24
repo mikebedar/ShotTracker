@@ -1,3 +1,4 @@
+import AtelierTheme
 import SwiftUI
 import WidgetKit
 
@@ -23,7 +24,9 @@ struct TodayWidgetEntryView: View {
             }
         }
         .widgetURL(WidgetShared.todayDeepLink)
-        .containerBackground(.fill.tertiary, for: .widget)
+        .containerBackground(for: .widget) { Rectangle().fill(.surfaceRaised) }
+        // The app's theme (AtelierTheme only): tones, text roles, spacing.
+        .atelierTheme(entry.theme)
     }
 }
 
@@ -36,20 +39,20 @@ struct SmallWidgetView: View {
 
     var body: some View {
         if let top = items.first {
-            VStack(alignment: .leading, spacing: 8) {
+            Column(spacing: .s) {
                 HStack {
                     Label {
                         Text(WidgetStatusStyle.title(top.status))
-                            .font(.caption.weight(.semibold))
+                            .textRole(.caption.weighted(.semibold))
                     } icon: {
                         Image(systemName: WidgetStatusStyle.symbol(top.status))
                     }
                     .foregroundStyle(WidgetStatusStyle.color(top.status))
+                    .widgetAccentable()
                     Spacer()
                     if items.count > 1 {
                         Text("+\(items.count - 1)")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.secondary)
+                            .textRole(.meta)
                     }
                 }
 
@@ -57,23 +60,22 @@ struct SmallWidgetView: View {
 
                 if showNames {
                     Text(top.item.displayName)
-                        .font(.headline)
+                        .textRole(.widgetName)
                         .lineLimit(2)
                 } else {
                     Image(systemName: top.item.kindSymbol)
                         .font(.title2)
                         .foregroundStyle(WidgetStatusStyle.color(top.status))
+                        .widgetAccentable()
                 }
 
                 Text(top.item.timeText(dayParts: dayParts))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .textRole(.widgetTime)
                     .minimumScaleFactor(0.75)
                 // Away from home: the other clock's time, "Home: Night · by 6:00 AM".
                 if let detail = top.item.detailText(dayParts: dayParts) {
                     Text(detail)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .textRole(.meta.colored(.secondary))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                 }
@@ -99,18 +101,19 @@ struct ListWidgetView: View {
         if items.isEmpty {
             AllDoneView(compact: false)
         } else {
-            VStack(alignment: .leading, spacing: 8) {
+            Column(spacing: .s) {
                 HStack {
                     Text("Today's Doses")
-                        .font(.headline)
+                        .textRole(.widgetName)
                     Spacer()
                     if overdueCount > 0 {
                         Text("\(overdueCount) overdue")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(.red))
+                            .textRole(.caption.weighted(.semibold))
+                            .foregroundStyle(.tone(.danger, .onFill))
+                            .padding(.horizontal, .s)
+                            .padding(.vertical, .xxs)
+                            .background(Capsule().fill(.tone(.danger, .fill)))
+                            .widgetAccentable()
                     }
                 }
 
@@ -120,8 +123,7 @@ struct ListWidgetView: View {
 
                 if items.count > maxRows {
                     Text("+\(items.count - maxRows) more")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .textRole(.helper)
                 }
 
                 Spacer(minLength: 0)
@@ -139,43 +141,44 @@ struct DoseRow: View {
     var dayParts: DayParts = .standard
 
     private var item: WidgetDoseItem { resolved.item }
-    private var color: Color { WidgetStatusStyle.color(resolved.status) }
+    private var color: ThemeColor { WidgetStatusStyle.color(resolved.status) }
 
     var body: some View {
-        HStack(spacing: 10) {
+        Row(spacing: .m) {
             if showNames {
                 AvatarView(letter: item.avatarLetter, hue: item.avatarHue)
             } else {
                 Image(systemName: item.kindSymbol)
                     .font(.body)
                     .foregroundStyle(color)
-                    .frame(width: 28, height: 28)
-                    .background(Circle().fill(color.opacity(0.15)))
+                    .frame(width: 28, height: 28) // ds-allow: the avatar's size, matched
+                    .background(Circle().fill(.tone(resolved.status.tone, .subtleFill)))
+                    .widgetAccentable()
             }
 
-            VStack(alignment: .leading, spacing: 1) {
+            Column(spacing: .none) {
                 Text(showNames ? item.displayName : WidgetStatusStyle.title(resolved.status))
-                    .font(.subheadline.weight(.medium))
+                    .textRole(.widgetRowTitle)
                     .lineLimit(1)
-                HStack(spacing: 4) {
+                Row(spacing: .xs) {
                     Text(item.timeText(dayParts: dayParts))
                     if item.takeWithFood {
                         Image(systemName: "fork.knife")
                     }
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .textRole(.helper)
                 .lineLimit(1)
                 // "by 12:00 PM home · 6:00 PM here" or "Morning (Paris) · by 12:00 PM ·
                 // Home: Night" away from the home zone.
                 .minimumScaleFactor(0.75)
             }
 
-            Spacer(minLength: 4)
+            Spacer(minLength: 4) // ds-allow: the least gap before the status mark
 
             Image(systemName: WidgetStatusStyle.symbol(resolved.status))
                 .font(.footnote)
                 .foregroundStyle(color)
+                .widgetAccentable()
         }
     }
 }
@@ -188,10 +191,10 @@ struct AvatarView: View {
 
     var body: some View {
         Text(letter)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.white)
-            .frame(width: 28, height: 28)
-            .background(Circle().fill(Color(hue: hue / 360, saturation: 0.55, brightness: 0.75)))
+            .textRole(.widgetRowTitle.weighted(.semibold))
+            .foregroundStyle(.white) // ds-allow: on the per-medication hue, as the app's widget always drew it
+            .frame(width: 28, height: 28) // ds-allow: the avatar, matched by the row's kind icon
+            .background(Circle().fill(Color(hue: hue / 360, saturation: 0.55, brightness: 0.75))) // ds-allow: per-medication hue
     }
 }
 
@@ -201,15 +204,22 @@ struct AllDoneView: View {
     let compact: Bool
 
     var body: some View {
-        VStack(spacing: compact ? 6 : 10) {
+        Column(alignment: .center, spacing: compact ? .s : .m) {
             Image(systemName: "checkmark.circle.fill")
                 .font(compact ? .title : .largeTitle)
-                .foregroundStyle(.green)
+                .foregroundStyle(.tone(.success))
+                .widgetAccentable()
             Text("All done today")
-                .font(compact ? .caption : .headline)
-                .foregroundStyle(.secondary)
+                .textRole(compact ? .helper : .widgetName.colored(.secondary))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+
+/// The widget's text roles (Dynamic Type styles, the theme's design).
+extension TextRole {
+    static let widgetName = TextRole("widgetName", style: .headline, usesDisplayDesign: true)
+    static let widgetTime = TextRole("widgetTime", style: .subheadline, color: .secondary)
+    static let widgetRowTitle = TextRole("widgetRowTitle", style: .subheadline, weight: .medium)
 }

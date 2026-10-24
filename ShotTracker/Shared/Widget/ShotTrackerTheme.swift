@@ -65,3 +65,18 @@ extension Tone {
     /// Snoozed (`DoseStatus.snoozed`): ShotTracker's lavender.
     nonisolated static let snoozed = Tone("snoozed")
 }
+
+extension WidgetDoseStatus {
+    /// The status's tone: the same mapping as the app's `DoseStatus.tone` (`WidgetToneParityTests` holds them equal).
+    nonisolated var tone: Tone {
+        switch self {
+        case .upcoming: .info
+        case .due: .warning
+        case .overdue: .danger
+        case .takenOnTime: .success
+        case .takenLate: .late
+        case .skipped: .neutral
+        case .snoozed: .snoozed
+        }
+    }
+}

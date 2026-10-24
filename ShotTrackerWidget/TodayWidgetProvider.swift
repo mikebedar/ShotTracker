@@ -1,9 +1,12 @@
+import AtelierTheme
 import WidgetKit
 import Foundation
 
 struct TodayEntry: TimelineEntry {
     let date: Date
     let snapshot: TodayWidgetSnapshot
+    /// The person's theme, rebuilt from the `ThemePreferences` the app wrote to the App Group.
+    var theme: AtelierTheme.Theme = TodayWidgetProvider.loadTheme()
 }
 
 struct TodayWidgetProvider: TimelineProvider {
@@ -73,5 +76,13 @@ extension TodayWidgetSnapshot {
                 item("c", "Vitamin D", 90, start: 21600, end: 25200, flexible: false),
             ]
         )
+    }
+}
+
+extension TodayWidgetProvider {
+    /// The app's appearance (`AppAppearance.publishToWidget`), else ShotTracker's theme.
+    static func loadTheme() -> AtelierTheme.Theme {
+        let data = UserDefaults(suiteName: WidgetShared.appGroupID)?.data(forKey: ShotTrackerTheme.widgetPreferencesKey)
+        return ShotTrackerTheme.resolved(from: data)
     }
 }

@@ -51,6 +51,14 @@ struct ShotTrackerThemeTests {
         #expect(rebuilt.id == "warm")
     }
 
+    /// The widget colours a status with the same tone as the app (`WidgetDoseStatus.tone` mirrors `DoseStatus.tone`).
+    @Test func widgetTonesMatchTheApp() throws {
+        for status in DoseStatus.allCases {
+            let widget = try #require(WidgetDoseStatus(rawValue: status.rawValue))
+            #expect(widget.tone == status.tone, "\(status)")
+        }
+    }
+
     /// Titles keep SF Rounded, as `Theme.Font.display` did.
     @Test func titlesAreRounded() {
         #expect(theme.typography.displayDesign == .rounded)
