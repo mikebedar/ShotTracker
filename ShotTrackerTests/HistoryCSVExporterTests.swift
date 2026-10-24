@@ -19,7 +19,7 @@ struct HistoryCSVExporterTests {
         let csv = HistoryCSVExporter.csv(doseEvents: [older], refillEvents: [newer])
         let lines = csv.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
 
-        #expect(lines[0] == "Date,Time,Medication,Event,Detail,Note")
+        #expect(lines[0] == "Date,Time,Time Zone,Medication,Event,Detail,Note")
         #expect(lines.count == 3)
         #expect(lines[1].contains("Refill"))
         #expect(lines[1].contains("+30 tablets"))

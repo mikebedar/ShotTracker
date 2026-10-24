@@ -165,7 +165,7 @@ struct MedicationDetailView: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.s1) {
                 Text("Home time zone: \(name)")
                     .font(.subheadline.weight(.semibold))
-                Text("This device is \(relation) it. Doses stay at their home times and show both clocks, like “8:00 AM home · 2:00 PM here”; reminders come at the home time. To follow this device's clock instead, change the home time zone in Edit.")
+                Text(travelExplanation(relation: relation))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -175,6 +175,22 @@ struct MedicationDetailView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(AccessibilityID.homeTimeZoneNote)
+    }
+
+    /// What travelling does to this medication's doses (`MedicationRegimen.travelPolicy`).
+    private func travelExplanation(relation: String) -> String {
+        let timings = regimen?.timings ?? []
+        let policies = Set(timings.map { regimen?.travelPolicy(for: $0) ?? TravelTimePolicy.defaultFor(kind: $0.kind) })
+        let place = SlotClockLabel.placeName(of: .current)
+        let what: String
+        if policies == [.followsMe] {
+            what = String(localized: "Its doses follow you: they move to \(place) time, like “Morning (\(place))”, and show the time at home too.", comment: "Detail note: a medication whose doses follow the device")
+        } else if policies == [.staysOnHome] {
+            what = String(localized: "Its doses stay at their home times and show both clocks, like “8:00 AM home · 2:00 PM here”; reminders come at the home time.", comment: "Detail note: a medication kept on home time")
+        } else {
+            what = String(localized: "Its named times follow you to \(place) time; its specific times stay at their home times and show both clocks.", comment: "Detail note: a medication with both kinds of timing")
+        }
+        return String(localized: "This device is \(relation) it. \(what) Change this in Edit → When travelling.", comment: "Detail note away from the home zone")
     }
 
     private func logRefill() {

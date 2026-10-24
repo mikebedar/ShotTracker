@@ -124,6 +124,13 @@ struct DoseCard: View {
                 .font(Theme.Font.text(.subheadline))
                 .foregroundStyle(Theme.Color.textSecondary)
 
+                // Away from home, a slot's other clock: "Home: Night · by 6:00 AM".
+                if let timingDetail {
+                    Text(timingDetail)
+                        .font(Theme.Font.text(.footnote))
+                        .foregroundStyle(Theme.Color.textTertiary)
+                }
+
                 if medication?.takeWithFood == true {
                     Label("Take with food", systemImage: "fork.knife")
                         .font(Theme.Font.text(.footnote))
@@ -132,17 +139,43 @@ struct DoseCard: View {
             }
     }
 
-    /// Home clock and, when the device is elsewhere, the local one too.
+    @Environment(\.dayParts) private var dayParts
+
+    /// Which clock the dose is on and how its times read (`DoseClockText`).
+    private var clockText: DoseClockText {
+        DoseClockText(dose: dose, dayParts: dayParts)
+    }
+
+    /// Footer and snooze times: the local clock for a slot that follows the device, else
+    /// home and (when the device is elsewhere) here.
     private var times: ZonedTimeFormatter {
-        ZonedTimeFormatter(home: dose.homeTimeZone)
+        clockText.times
     }
 
     private var timingText: String {
-        timingText(time: times.time)
+        let clock = clockText
+        if let slot = clock.awaySlot {
+            // "Morning (Paris) · anytime by 12:00 PM" — on the slot's own clock.
+            return String(localized: "\(slot.title) · anytime by \(slot.time(dose.deadline))", comment: "A dose slot away from home and its deadline on its own clock")
+        }
+        return timingText(time: clock.times.time)
+    }
+
+    private var timingDetail: String? {
+        clockText.detail(dose.deadline, by: true)
     }
 
     private var spokenTimingText: String {
-        timingText(time: times.spokenTime)
+        let clock = clockText
+        if let slot = clock.awaySlot {
+            // "Morning in Paris, anytime by 12:00 PM; at home it's night, by 6:00 AM"
+            return clock.spoken(
+                slot: slot,
+                time: String(localized: "anytime by \(slot.time(dose.deadline))", comment: "Spoken dose deadline"),
+                detail: slot.spokenDetail(dose.deadline, by: true)
+            )
+        }
+        return timingText(time: clock.times.spokenTime)
     }
 
     private func timingText(time: (Date) -> String) -> String {

@@ -25,26 +25,25 @@ enum DoseRepository {
         for medication in medications where medication.isActive {
             guard let regimen = MedicationRepository.currentRegimen(for: medication) else { continue }
 
-            let inputs = DoseRescheduling.engineInputs(for: medication, regimen: regimen)
             let generated = engine.generateOccurrences(
-                for: regimen,
-                medicationID: medication.id,
+                for: medication,
+                regimen: regimen,
                 from: start,
                 through: end,
-                preferences: preferences,
-                anchorOverride: inputs.anchor,
-                rollingInterval: inputs.rollingInterval,
-                notBefore: inputs.notBefore,
-                rollingAnchorSlot: inputs.rollingAnchorSlot
+                preferences: preferences
             )
 
             var regimenCalendar = Calendar(identifier: .gregorian)
-            regimenCalendar.timeZone = TimeZone(identifier: regimen.timeZoneIdentifier) ?? .current
+            regimenCalendar.timeZone = regimen.homeTimeZone
+            // Travelling, the slots that follow the device start their range at the
+            // device's midnight: prune only where both clocks generated.
+            var deviceCalendar = Calendar(identifier: .gregorian)
+            deviceCalendar.timeZone = engine.deviceTimeZone(home: regimen.homeTimeZone)
             let plan = DoseReconciliation.plan(
                 existing: medication.scheduledDoses.map(DoseReconciliation.Row.init),
                 generated: generated,
                 currentVersion: regimen.version,
-                rangeStart: regimenCalendar.startOfDay(for: start),
+                rangeStart: max(regimenCalendar.startOfDay(for: start), deviceCalendar.startOfDay(for: start)),
                 rangeEnd: end,
                 now: referenceDate,
                 calendar: regimenCalendar
@@ -62,6 +61,7 @@ enum DoseRepository {
                 existing.reminderAt = occurrence.reminderAt
                 existing.regimenVersion = regimen.version
                 existing.timingID = occurrence.timingID
+                existing.clockTimeZoneIdentifier = occurrence.clockTimeZoneIdentifier
             }
 
             for occurrence in plan.inserts {
@@ -76,7 +76,8 @@ enum DoseRepository {
                     reminderAt: occurrence.reminderAt,
                     medication: medication,
                     generatedAt: referenceDate,
-                    timingID: occurrence.timingID
+                    timingID: occurrence.timingID,
+                    clockTimeZoneIdentifier: occurrence.clockTimeZoneIdentifier
                 )
                 medication.scheduledDoses.append(dose)
                 context.insert(dose)
@@ -97,6 +98,7 @@ enum DoseRepository {
         to dose: ScheduledDose,
         note: String = "",
         now: Date = .now,
+        timeZone: TimeZone = .current,
         context: ModelContext
     ) throws {
         let evaluator = DoseStatusEvaluator()
@@ -110,6 +112,7 @@ enum DoseRepository {
             loggedAt: now,
             action: action,
             note: note,
+            timeZoneIdentifier: timeZone.identifier,
             medication: dose.medication,
             scheduledDose: dose
         )

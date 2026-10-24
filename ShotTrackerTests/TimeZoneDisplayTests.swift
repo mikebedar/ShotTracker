@@ -127,7 +127,8 @@ struct TimeZoneDisplayTests {
 
     @Test func reminderTextNamesBothClocks() throws {
         let medication = Medication(displayName: "Metformin")
-        let regimen = MedicationRegimen(anchorDate: utc(2026, 7, 1, 12), timeZoneIdentifier: newYork.identifier, medication: medication)
+        // Kept on home time: a slot that stays on New York's clock in Paris.
+        let regimen = MedicationRegimen(anchorDate: utc(2026, 7, 1, 12), timeZoneIdentifier: newYork.identifier, travelPolicy: .staysOnHome, medication: medication)
         medication.regimens = [regimen]
         let morning = ScheduledDose(
             occurrenceKey: "m", regimenVersion: 1, scheduledAt: utc(2026, 7, 14, 10),
@@ -136,11 +137,12 @@ struct TimeZoneDisplayTests {
         )
         let text = NotificationPlanner.content(for: morning, fireDate: utc(2026, 7, 14, 15), isFollowUp: false, localTimeZone: paris)
         let both = ZonedTimeFormatter(home: newYork, local: paris).time(utc(2026, 7, 14, 16))
-        #expect(text.body == "Morning dose · take by \(both).")
+        // 6:00–12:00 New York is 12:00–18:00 in Paris: the afternoon there.
+        #expect(text.body == "Morning dose (home) · Here: Afternoon · take by \(both).")
         #expect(normalized(both).hasSuffix("home · 6:00 PM here"))
 
         let home = NotificationPlanner.content(for: morning, fireDate: utc(2026, 7, 14, 15), isFollowUp: false, localTimeZone: newYork)
-        #expect(!home.body.contains("here"), "At home the text is unchanged")
+        #expect(home.body == "Morning dose · take by \(ZonedTimeFormatter(home: newYork, local: newYork).time(utc(2026, 7, 14, 16))).", "At home the text is unchanged")
     }
 
     @Test func remindersArePinnedToTheirInstant() throws {
@@ -158,8 +160,16 @@ struct TimeZoneDisplayTests {
             isTaken: false, isSkipped: false, storedStatus: "upcoming",
             homeTimeZoneIdentifier: newYork.identifier
         )
-        #expect(normalized(item.timeText(localTimeZone: paris)).hasPrefix("by 12:00 PM home · 6:00 PM here"))
-        #expect(!item.timeText(localTimeZone: newYork).contains("here"))
+        // A slot on its home clock (an older snapshot, or one kept on home time).
+        #expect(normalized(item.timeText(localTimeZone: paris)) == "Morning (home) · by 12:00 PM · Here: Afternoon")
+        #expect(normalized(item.detailText(localTimeZone: paris) ?? "") == "Here: Afternoon · by 6:00 PM")
+        #expect(normalized(item.timeText(localTimeZone: newYork)) == "by 12:00 PM")
+        #expect(item.detailText(localTimeZone: newYork) == nil)
+
+        // A specific time keeps both clocks.
+        var exact = item
+        exact.isFlexibleWindow = false
+        #expect(normalized(exact.timeText(localTimeZone: paris)) == "6:00 AM home · 12:00 PM here")
     }
 
     @Test func theExportNamesBothZones() throws {
@@ -171,11 +181,14 @@ struct TimeZoneDisplayTests {
         )
         try T.refresh(context, at: utc(2026, 7, 14, 11))
         let dose = try #require(medication.scheduledDoses.first { $0.scheduledAt == utc(2026, 7, 14, 12) })
-        try DoseRepository.applyAction(.taken, to: dose, now: utc(2026, 7, 14, 12, 5), context: context)
+        try DoseRepository.applyAction(.taken, to: dose, now: utc(2026, 7, 14, 12, 5), timeZone: paris, context: context)
 
         let csv = normalized(HistoryCSVExporter.csv(doseEvents: medication.doseEvents, refillEvents: [], timeZone: paris))
         #expect(csv.contains("Scheduled 2026-07-14 8:00 AM EDT (2:00 PM GMT+2 local) (8:00 AM)"))
-        #expect(csv.contains("2026-07-14,2:05 PM"), "Logged time on the local clock")
+        #expect(csv.contains("2026-07-14,2:05 PM,GMT+2"), "Logged time on the clock it was logged on")
+        // Exported later from New York, the row still reads on the Paris clock.
+        let later = normalized(HistoryCSVExporter.csv(doseEvents: medication.doseEvents, refillEvents: [], timeZone: newYork))
+        #expect(later.contains("2026-07-14,2:05 PM,GMT+2"))
     }
 
     // MARK: Changing the home zone

@@ -207,7 +207,7 @@ struct HealthPassBehaviourTests {
         try T.refresh(context, at: T.date(2026, 7, 16, 5))
 
         let before = SupplyForecastService.projection(
-            for: medication, engine: DoseScheduleEngine(), preferences: .default,
+            for: medication, engine: DoseScheduleEngine(deviceClock: .atHome), preferences: .default,
             now: T.date(2026, 7, 16, 5), calendar: calendar
         )
         #expect(before.map { calendar.component(.day, from: $0.runOutDate) } == 20)
@@ -217,7 +217,7 @@ struct HealthPassBehaviourTests {
 
         // 4 left after this morning's dose → Jul 17…20, still Jul 20.
         let after = SupplyForecastService.projection(
-            for: medication, engine: DoseScheduleEngine(), preferences: .default,
+            for: medication, engine: DoseScheduleEngine(deviceClock: .atHome), preferences: .default,
             now: T.date(2026, 7, 16, 8), calendar: calendar
         )
         #expect(after.map { calendar.component(.day, from: $0.runOutDate) } == 20)

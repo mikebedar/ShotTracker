@@ -20,6 +20,7 @@ enum AccessibilityID {
     static let notificationToggle = "toggle.notifications"
     static let homeTimeZoneRow = "row.homeTimeZone"
     static let homeTimeZoneNote = "text.homeTimeZoneNote"
+    static let travelPolicyPicker = "picker.travelPolicy"
 
     static func medicationRow(_ id: UUID) -> String {
         "row.medication.\(id.uuidString)"

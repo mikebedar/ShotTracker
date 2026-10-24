@@ -24,11 +24,18 @@ struct SimpleDoseRow: View {
                 HStack(spacing: 5) {
                     Image(systemName: (medication?.kind ?? .oral).symbolName)
                         .font(.caption2)
-                    Text(times.time(dose.scheduledAt))
-                        .accessibilityLabel(times.spokenTime(dose.scheduledAt))
+                    Text(clockText.point(dose.scheduledAt))
+                        .accessibilityLabel(clockText.spokenPoint(dose.scheduledAt))
                 }
                 .font(Theme.Font.text(.footnote))
                 .foregroundStyle(Theme.Color.textSecondary)
+
+                if let detail = clockText.detail(dose.scheduledAt) {
+                    Text(detail)
+                        .font(Theme.Font.text(.caption))
+                        .foregroundStyle(Theme.Color.textTertiary)
+                        .accessibilityHidden(true)
+                }
 
                 if dose.snoozeOffset > 0 {
                     Text(snoozeDetail)
@@ -50,10 +57,13 @@ struct SimpleDoseRow: View {
         .accessibilityIdentifier(AccessibilityID.scheduledDoseRow(dose.id))
     }
 
-    /// The home clock (and the local one when they differ). A forecast dose has no
-    /// `medication` relationship, so the zone comes from the medication passed in.
-    private var times: ZonedTimeFormatter {
-        ZonedTimeFormatter(home: medication?.homeTimeZone(forVersion: dose.regimenVersion))
+    @Environment(\.dayParts) private var dayParts
+
+    /// "6:00 AM" at home; away, "Morning (Paris) · 6:00 AM" + "Home: Night · 12:00 AM" for
+    /// a slot and "8:00 AM home · 2:00 PM here" for a specific time. A forecast dose has
+    /// no `medication` relationship, so the zone comes from the medication passed in.
+    private var clockText: DoseClockText {
+        DoseClockText(dose: dose, medication: medication, dayParts: dayParts)
     }
 
     /// "Snoozed 20 min" on an open dose, "Taken 10 min late · snoozed 20 min" on a taken one.

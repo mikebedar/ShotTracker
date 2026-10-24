@@ -58,7 +58,7 @@ struct RegimenEditRegressionTests {
 
     @Test func editingTimingAfterTakingTodayDoesNotDuplicateFutureDays() throws {
         let context = try makeContext()
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
         let anchor = Self.date(2026, 7, 1)
         let now = Self.date(2026, 7, 13, 10)
 
@@ -127,7 +127,7 @@ struct RegimenEditRegressionTests {
     /// regimen version) self-heals: the next refresh prunes them as untouched stale rows.
     @Test func existingPhantomPastDosesArePrunedOnNextRefresh() throws {
         let context = try makeContext()
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
         let anchor = Self.date(2026, 7, 1)
         let now = Self.date(2026, 7, 13, 10)
 
@@ -172,7 +172,7 @@ struct RegimenEditRegressionTests {
 
     @Test func editingRollingMedicationAfterTakingDoesNotDuplicate() throws {
         let context = try makeContext()
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
         let anchor = Self.date(2026, 7, 1)
         let now = Self.date(2026, 7, 13, 10)
 

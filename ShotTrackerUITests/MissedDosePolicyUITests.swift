@@ -35,10 +35,12 @@ final class MissedDosePolicyUITests: XCTestCase {
     }
 
     @MainActor
-    private func scrollUntilVisible(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) -> Bool {
+    private func scrollUntilVisible(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 14) -> Bool {
         for _ in 0..<maxSwipes {
             if element.exists && element.isHittable { return true }
-            app.swipeUp()
+            // Slow swipes: a fast one flings the (longer since "When travelling") form past
+            // the section before it's built.
+            app.swipeUp(velocity: .slow)
         }
         return element.exists && element.isHittable
     }

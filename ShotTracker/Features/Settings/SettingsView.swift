@@ -86,7 +86,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Time Zones")
                 } footer: {
-                    Text("Each medication keeps the time zone its schedule was set up in, its home zone. When you travel, a dose set for 8:00 AM stays at 8:00 AM home time and its reminder comes then; times show both clocks, like “8:00 AM home · 2:00 PM here”. To move a medication to the local clock, change its home time zone in Edit.")
+                    Text(String(localized: "Each medication keeps the time zone its schedule was set up in, its home zone. When you travel, named times — morning, noon, evening, night, before bed — follow you: in Paris, Morning is the Paris morning, and the dose shows the time at home too, like “Morning (Paris) · Home: Night · 2:00 AM”. Specific times, such as an 8:00 AM injection, stay on home time and remind you at that moment wherever you are, showing both clocks: “8:00 AM home · 2:00 PM here”. Change this for a medication in Edit → When travelling; a named time kept on home time reads “Morning (home) · Here: Afternoon · 2:00 PM”.", comment: "Settings → Time Zones footer"))
                 }
 
                 Section {

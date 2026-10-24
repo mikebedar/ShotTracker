@@ -23,6 +23,9 @@ struct MedicationDraft {
     /// regimen's own when editing (an edit made while travelling used to re-home the
     /// schedule to wherever the phone was). Changing it creates a new regimen version.
     var homeTimeZoneIdentifier = TimeZone.current.identifier
+    /// "When travelling": nil = by timing kind (named slots follow the device, specific
+    /// times stay home). Changing what it means for any timing is a schedule change.
+    var travelPolicy: TravelTimePolicy?
     var frequency: ScheduleFrequency = .daily
     var intervalDays = 1
     /// Defaults to today's weekday / day of month, not a fixed Monday / the 1st.
@@ -67,6 +70,7 @@ struct MedicationDraft {
         if let regimen = medication.regimens.active {
             anchorDate = regimen.anchorDate
             homeTimeZoneIdentifier = regimen.timeZoneIdentifier
+            travelPolicy = regimen.travelPolicy
             frequency = regimen.recurrenceRule.frequency
             intervalDays = regimen.recurrenceRule.intervalDays
             weekdays = Set(regimen.recurrenceRule.weekdays)
@@ -137,6 +141,7 @@ struct MedicationDraft {
             .map { PhaseDraft(phase: $0) }
         return !calendar.isDate(anchorDate, inSameDayAs: regimen.anchorDate)
             || homeTimeZoneIdentifier != regimen.timeZoneIdentifier
+            || effectiveTravelPolicies != timings.map { TravelTimePolicy.effective(regimen.travelPolicy, for: $0) }
             || recurrenceRule != regimen.recurrenceRule
             || timings != regimen.timings
             || graceWindowMinutes != regimen.graceWindowMinutes
@@ -147,6 +152,19 @@ struct MedicationDraft {
 
     var minimumIntervalHours: Int? {
         missedDosePolicy == .rescheduleFromLastDose ? minimumIntervalDays * 24 : nil
+    }
+
+    /// What "When travelling" means for each timing. Picking the default explicitly
+    /// changes nothing, so it doesn't create a new version.
+    var effectiveTravelPolicies: [TravelTimePolicy] {
+        timings.map { TravelTimePolicy.effective(travelPolicy, for: $0) }
+    }
+
+    /// The by-kind default, when every timing has the same one; nil for a mix of named
+    /// slots and specific times (then "Automatic" is the default).
+    var defaultTravelPolicy: TravelTimePolicy? {
+        let defaults = Set(timings.map { TravelTimePolicy.defaultFor(kind: $0.kind) })
+        return defaults.count == 1 ? defaults.first : nil
     }
 
     func reminderPolicyDiffers(from policy: ReminderPolicy?) -> Bool {
@@ -574,7 +592,7 @@ struct EditMedicationView: View {
 
         if home.secondsFromGMT() != TimeZone.current.secondsFromGMT() {
             VStack(alignment: .leading, spacing: Theme.Spacing.s2) {
-                Text("The times below are on this clock. Doses stay on it while you travel and show both clocks, home and here.")
+                Text(String(localized: "The times below are on this clock. While you travel, each dose follows the setting below.", comment: "Edit: under the home time zone, away from it"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Button("Use This Device's Time Zone (\(ZonedTimeFormatter.displayName(of: .current)))") {
@@ -583,6 +601,38 @@ struct EditMedicationView: View {
                 .font(.footnote.weight(.semibold))
             }
         }
+
+        travelPolicyRow
+    }
+
+    /// "When travelling: Follows me / Stays on home time". The default depends on the
+    /// timings (named slots follow, specific times stay); a mix offers "Automatic".
+    @ViewBuilder
+    private var travelPolicyRow: some View {
+        let defaultPolicy = draft.defaultTravelPolicy
+        Picker(String(localized: "When travelling", comment: "Edit: the travel setting's label"), selection: Binding<TravelTimePolicy?>(
+            get: { draft.travelPolicy ?? defaultPolicy },
+            set: { draft.travelPolicy = $0 }
+        )) {
+            if defaultPolicy == nil {
+                Text(String(localized: "Automatic", comment: "Travel setting: named times follow, specific times stay home")).tag(TravelTimePolicy?.none)
+            }
+            ForEach(TravelTimePolicy.allCases) { policy in
+                Text(policy.title).tag(TravelTimePolicy?.some(policy))
+            }
+        }
+        .accessibilityIdentifier(AccessibilityID.travelPolicyPicker)
+
+        Text(travelPolicyExplanation)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+    }
+
+    private var travelPolicyExplanation: String {
+        if let policy = draft.travelPolicy ?? draft.defaultTravelPolicy {
+            return policy.explanation
+        }
+        return String(localized: "Named times (Morning, Evening…) move to the local clock when you travel; specific times stay at their home times and remind you at that moment.", comment: "Explains the Automatic travel setting")
     }
 
     private var defaultSupplyUnit: String {
@@ -745,6 +795,7 @@ struct EditMedicationView: View {
                 graceWindowMinutes: draft.graceWindowMinutes,
                 missedDosePolicy: draft.missedDosePolicy,
                 minimumIntervalHours: draft.minimumIntervalHours,
+                travelPolicy: draft.travelPolicy,
                 medication: medication
             )
             for phase in draft.makePhases() {

@@ -13,6 +13,10 @@ enum DoseRescheduling {
         /// For a rolling regimen: the slot the last real dose filled on the anchor day,
         /// so that day's later slots are still generated.
         var rollingAnchorSlot: RollingAnchorSlot? = nil
+        /// Fixed policies: nothing on days before this instant's day (the regimen
+        /// version's creation), read on each occurrence's own clock — see
+        /// `fixedGenerationFloor`.
+        var floorDay: Date? = nil
     }
 
     static func engineInputs(for medication: Medication, regimen: MedicationRegimen) -> EngineInputs {
@@ -29,8 +33,9 @@ enum DoseRescheduling {
         else {
             return EngineInputs(
                 anchor: regimen.anchorDate,
-                notBefore: fixedGenerationFloor(for: medication, regimen: regimen, calendar: calendar),
-                rollingInterval: nil
+                notBefore: nil,
+                rollingInterval: nil,
+                floorDay: fixedGenerationFloor(for: regimen)
             )
         }
 
@@ -51,19 +56,15 @@ enum DoseRescheduling {
     /// `DoseRepository.refreshSchedules`, slot by slot, so a twice-daily med keeps its
     /// evening dose after an edit made once the morning one was taken.
     ///
-    /// The floor is a fixed instant (the version's creation day), so it becomes inert
-    /// once the rolling window advances past it — it never suppresses or prunes rows
-    /// generated later under this same version.
-    private static func fixedGenerationFloor(
-        for medication: Medication,
-        regimen: MedicationRegimen,
-        calendar: Calendar
-    ) -> Date {
-        let floorDay = calendar.startOfDay(for: regimen.createdAt)
-
-        // Exclusive filter (`scheduledAt <= notBefore` is dropped): back off one second
-        // so a dose scheduled exactly at the floor's midnight still survives.
-        return floorDay.addingTimeInterval(-1)
+    /// The floor is a fixed day (the version's creation day), so it becomes inert once the
+    /// rolling window advances past it — it never suppresses or prunes rows generated
+    /// later under this same version. The engine reads the day on each occurrence's own
+    /// clock (`floorDay`): as an instant on the home clock it fell in the local afternoon
+    /// in Tokyo, so a version created there (an edit while travelling) dropped that
+    /// morning's slot that follows the device, and the old version's still-open row was
+    /// pruned with it.
+    private static func fixedGenerationFloor(for regimen: MedicationRegimen) -> Date {
+        regimen.createdAt
     }
 
     struct MinIntervalWarning: Equatable {

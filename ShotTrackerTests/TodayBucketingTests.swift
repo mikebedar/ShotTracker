@@ -85,7 +85,7 @@ struct TodayBucketingTests {
         let groups = TodayBucketing.longRangeComingUp(
             medications: [medication],
             statusFor: { _ in .upcoming },
-            engine: DoseScheduleEngine(),
+            engine: DoseScheduleEngine(deviceClock: .atHome),
             preferences: .default,
             forecastLimit: Self.date(2027, 1, 1, 0, 0),
             now: now,

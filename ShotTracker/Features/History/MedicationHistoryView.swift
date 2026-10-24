@@ -105,7 +105,7 @@ struct MedicationHistoryView: View {
                 if !events.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
                         ShareLink(
-                            item: HistoryCSVDocument(csv: HistoryCSVExporter.csv(doseEvents: events, refillEvents: refillEvents)),
+                            item: HistoryCSVDocument(csv: HistoryCSVExporter.csv(doseEvents: events, refillEvents: refillEvents, dayParts: dependencies.preferencesStore.preferences.dayParts)),
                             preview: SharePreview("Dose History", image: Image(systemName: "tablecells"))
                         ) {
                             Label("Export", systemImage: "square.and.arrow.up")

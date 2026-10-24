@@ -24,7 +24,7 @@ struct DoseWindowEngineTests {
     }
 
     @Test func namedSlotProducesWindowOccurrence() {
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
         let regimen = regimen(timing: DailyTiming(kind: .morning))
 
         let occurrences = engine.generateOccurrences(
@@ -45,7 +45,7 @@ struct DoseWindowEngineTests {
     }
 
     @Test func exactTimeProducesPointOccurrence() {
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
         let regimen = regimen(timing: DailyTiming(kind: .exactTime, exactTime: ClockTime(hour: 8, minute: 30)))
 
         let occurrences = engine.generateOccurrences(
@@ -65,7 +65,7 @@ struct DoseWindowEngineTests {
     }
 
     @Test func perMedicationCustomWindowOverridesGlobal() {
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
         let custom = DoseWindow(start: ClockTime(hour: 6, minute: 0), end: ClockTime(hour: 9, minute: 0))
         let regimen = regimen(timing: DailyTiming(kind: .morning, customWindow: custom))
 

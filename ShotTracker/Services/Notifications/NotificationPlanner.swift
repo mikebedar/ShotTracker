@@ -32,7 +32,8 @@ enum NotificationPlanner {
         preferences: AppPreferences,
         evaluator: DoseStatusEvaluator,
         now: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        localTimeZone: TimeZone = .current
     ) -> [Planned] {
         guard preferences.globalNotificationsEnabled else { return [] }
         let superseded = DoseSupersession.supersededIDs(in: doses, now: now, calendar: calendar)
@@ -49,7 +50,7 @@ enum NotificationPlanner {
 
             for (index, fireDate) in fireDates(for: dose, policy: policy, preferences: preferences).enumerated()
             where fireDate > now {
-                let text = content(for: dose, fireDate: fireDate, isFollowUp: index > 0)
+                let text = content(for: dose, fireDate: fireDate, isFollowUp: index > 0, localTimeZone: localTimeZone, dayParts: preferences.dayParts)
                 planned.append(Planned(
                     identifier: "\(dose.occurrenceKey)-\(index)",
                     fireDate: fireDate,
@@ -100,19 +101,24 @@ enum NotificationPlanner {
     /// "Time for Metformin" / "Morning dose · take by 12:00 PM." — the old body read
     /// "Metformin is due morning." (and "is due 4:02 am." for a 9:02 dose).
     ///
-    /// Times read in the dose's home time zone and, when the device is somewhere else,
-    /// in both: "take by 12:00 PM home · 6:00 PM here." A snoozed dose says so and uses
-    /// its moved deadline: "Morning dose · snoozed 20 min · take by 12:20 PM."
+    /// Away from home a slot names its clock and the other one (decided 2026-10-23):
+    /// "Morning dose (Paris) · Home: Night · take by 12:00 PM." for a slot that follows the
+    /// device, "Morning dose (home) · Here: Afternoon · take by 12:00 PM home · 6:00 PM
+    /// here." for one kept on home time. A specific time reads on both clocks: "Dose due
+    /// at 8:00 AM home · 2:00 PM here." A snoozed dose says so and uses its moved
+    /// deadline: "Morning dose · snoozed 20 min · take by 12:20 PM."
     static func content(
         for dose: ScheduledDose,
         fireDate: Date,
         isFollowUp: Bool,
-        localTimeZone: TimeZone = .current
+        localTimeZone: TimeZone = .current,
+        dayParts: DayParts = .standard
     ) -> (title: String, body: String) {
         let name = dose.medication?.displayName ?? "Medication"
         let deadline = dose.deadline
         let isOverdue = fireDate > deadline
-        let times = ZonedTimeFormatter(home: dose.homeTimeZone, local: localTimeZone)
+        let clockText = DoseClockText(dose: dose, dayParts: dayParts, device: localTimeZone)
+        let times = clockText.times
 
         let title: String
         if isOverdue {
@@ -127,10 +133,13 @@ enum NotificationPlanner {
         var body: String
         if dose.isFlexibleWindow {
             let end = times.time(deadline)
+            let slotDose = String(localized: "\(dose.slotTitle) dose", comment: "Notification: the dose of a slot, e.g. Morning dose")
+            let doseName = clockText.awaySlot?.titled(slotDose) ?? slotDose
+            let other = clockText.awaySlot?.shortDetail.map { " · \($0)" } ?? ""
             if isOverdue {
-                body = "\(dose.slotTitle) dose was due by \(end)" + (snooze.map { " (\($0))" } ?? "") + "."
+                body = "\(doseName) was due by \(end)" + (snooze.map { " (\($0))" } ?? "") + other + "."
             } else {
-                body = "\(dose.slotTitle) dose" + (snooze.map { " · \($0)" } ?? "") + " · take by \(end)."
+                body = doseName + other + (snooze.map { " · \($0)" } ?? "") + " · take by \(end)."
             }
         } else {
             let time = times.time(dose.scheduledAt)

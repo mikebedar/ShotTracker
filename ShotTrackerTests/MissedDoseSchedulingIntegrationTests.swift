@@ -28,7 +28,7 @@ struct MissedDoseSchedulingIntegrationTests {
 
     @Test func takingRollingDoseLateReshiftsMaterializedGrid() throws {
         let context = try makeContext()
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
         let anchor = Self.date(2026, 7, 7) // Tuesday
 
         let medication = Medication(displayName: "Weekly Shot", kind: .injection)
@@ -84,7 +84,7 @@ struct MissedDoseSchedulingIntegrationTests {
 
     @Test func fixedDailyDoseTakenLateDoesNotShift() throws {
         let context = try makeContext()
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
 
         let medication = Medication(displayName: "BP Pill", kind: .oral)
         let regimen = MedicationRegimen(

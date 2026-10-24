@@ -47,12 +47,26 @@ struct MedicationScheduledDosesView: View {
                 }?.id
                 ForEach(upcomingDoses) { dose in
                     let status = dependencies.statusEvaluator.effectiveStatus(for: dose)
-                    let times = ZonedTimeFormatter(home: dose.homeTimeZone)
+                    let clockText = DoseClockText(dose: dose, medication: medication, dayParts: dependencies.preferencesStore.preferences.dayParts)
+                    let times = clockText.times
                     VStack(alignment: .leading, spacing: 10) {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("\(dose.slotTitle) • \(times.dateTime(dose.scheduledAt))")
-                                .font(.headline)
-                                .accessibilityLabel("\(dose.slotTitle), \(dose.scheduledAt.formatted(date: .abbreviated, time: .omitted)), \(times.spokenTime(dose.scheduledAt))")
+                            if let slot = clockText.awaySlot {
+                                // "Morning (Paris) • Oct 23, 2026 at 6:00 AM" + "Home: Night · 12:00 AM"
+                                Text("\(slot.title) • \(slot.dateTime(dose.scheduledAt))")
+                                    .font(.headline)
+                                    .accessibilityLabel("\(dose.scheduledAt.formatted(date: .abbreviated, time: .omitted)), \(clockText.spokenPoint(dose.scheduledAt))")
+                                if let detail = slot.detail(dose.scheduledAt) {
+                                    Text(detail)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityHidden(true)
+                                }
+                            } else {
+                                Text("\(dose.slotTitle) • \(times.dateTime(dose.scheduledAt))")
+                                    .font(.headline)
+                                    .accessibilityLabel("\(dose.slotTitle), \(dose.scheduledAt.formatted(date: .abbreviated, time: .omitted)), \(times.spokenTime(dose.scheduledAt))")
+                            }
                             Text(statusLine(for: dose, status: status, times: times))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)

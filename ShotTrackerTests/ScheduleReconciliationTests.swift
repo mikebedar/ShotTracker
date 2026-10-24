@@ -166,7 +166,7 @@ struct ScheduleReconciliationTests {
             RegimenPhase(title: "Low", startDayOffset: 3, durationDays: 3, recurrenceRule: RecurrenceRule(frequency: .intervalDays, intervalDays: 2), timings: []),
         ]
 
-        let occurrences = DoseScheduleEngine().generateOccurrences(
+        let occurrences = DoseScheduleEngine(deviceClock: .atHome).generateOccurrences(
             for: regimen, medicationID: medication.id,
             from: T.date(2026, 7, 1, 0), through: T.date(2026, 7, 20, 0),
             preferences: .default

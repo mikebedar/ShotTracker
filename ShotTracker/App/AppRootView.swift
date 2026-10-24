@@ -37,6 +37,8 @@ struct AppRootView: View {
                     .accessibilityIdentifier(AccessibilityID.settingsTab)
             }
         }
+        // Parts of the day for "Home: Night" away from home, from the routine windows.
+        .environment(\.dayParts, dependencies.preferencesStore.preferences.dayParts)
         .task {
             await dependencies.bootstrapIfNeeded(context: modelContext)
             if LaunchOptions.runsBackgroundRefresh {

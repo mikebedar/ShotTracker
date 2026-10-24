@@ -25,6 +25,17 @@ enum DemoData {
             let total = min(max(0, minutesNow + offsetMinutes), 23 * 60 + 59)
             return ClockTime(hour: total / 60, minute: total % 60)
         }
+        // Named slots follow the device (decided 2026-10-23), so a slot's custom window is
+        // written on the device's clock to land in the same bucket; specific times and
+        // slots kept on home time use the home clock.
+        var deviceCalendar = Calendar(identifier: .gregorian)
+        deviceCalendar.timeZone = .current
+        let deviceMinutesNow = deviceCalendar.component(.hour, from: now) * 60 + deviceCalendar.component(.minute, from: now)
+        func localClock(_ offsetMinutes: Int) -> ClockTime {
+            let total = min(max(0, deviceMinutesNow + offsetMinutes), 23 * 60 + 59)
+            return ClockTime(hour: total / 60, minute: total % 60)
+        }
+        let isAway = homeZone.secondsFromGMT(for: now) != TimeZone.current.secondsFromGMT(for: now)
         let weekday = homeCalendar.component(.weekday, from: now)
         let dayOfMonth = homeCalendar.component(.day, from: now)
 
@@ -39,11 +50,20 @@ enum DemoData {
         add("Metformin", canonical: "metformin 500 mg", kind: .oral,
             rule: RecurrenceRule(frequency: .daily),
             timings: [
-                DailyTiming(kind: .morning, customWindow: DoseWindow(start: clock(-60), end: clock(120))),
+                DailyTiming(kind: .morning, customWindow: DoseWindow(start: localClock(-60), end: localClock(120))),
                 DailyTiming(kind: .bedtime),
             ],
             supply: (perContainer: 60, onHand: 41, unit: "tablets"), withFood: true,
             anchor: weekAgo, in: context)
+
+        // Away from home only: a morning pill kept on home time ("Morning (home)"), its
+        // window open now on the home clock.
+        if isAway {
+            add("Levothyroxine", canonical: "levothyroxine 50 mcg", kind: .oral,
+                rule: RecurrenceRule(frequency: .daily),
+                timings: [DailyTiming(kind: .morning, customWindow: DoseWindow(start: clock(-30), end: clock(150)))],
+                travelPolicy: .staysOnHome, anchor: weekAgo, in: context)
+        }
 
         // Coming up soon / later today: every other day, an hour from now.
         add("Vitamin D", canonical: nil, kind: .oral,
@@ -127,6 +147,7 @@ enum DemoData {
         supply: (perContainer: Int, onHand: Int, unit: String)? = nil,
         withFood: Bool = false,
         policy: MissedDosePolicy? = nil,
+        travelPolicy: TravelTimePolicy? = nil,
         anchor: Date,
         in context: ModelContext
     ) -> Medication {
@@ -149,6 +170,7 @@ enum DemoData {
             graceWindowMinutes: grace,
             createdAt: anchor,
             missedDosePolicy: policy ?? MissedDosePolicy.defaultFor(kind: kind),
+            travelPolicy: travelPolicy,
             medication: medication
         )
         let reminders = ReminderPolicy()

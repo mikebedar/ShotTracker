@@ -40,7 +40,7 @@ struct SupplyForecastServiceTests {
         // 5 doses: Jul 16, 17, 18, 19, 20 → runs out Jul 20.
         let projection = SupplyForecastService.projection(
             for: medication,
-            engine: DoseScheduleEngine(),
+            engine: DoseScheduleEngine(deviceClock: .atHome),
             preferences: .default,
             now: Self.date(2026, 7, 16, 5),
             calendar: Self.calendar
@@ -56,7 +56,7 @@ struct SupplyForecastServiceTests {
         // remaining unit covers TOMORROW's dose.
         let projection = SupplyForecastService.projection(
             for: medication,
-            engine: DoseScheduleEngine(),
+            engine: DoseScheduleEngine(deviceClock: .atHome),
             preferences: .default,
             now: Self.date(2026, 7, 16, 13),
             calendar: Self.calendar
@@ -68,13 +68,13 @@ struct SupplyForecastServiceTests {
     @Test func emptySupplyOrNoTrackingYieldsNil() {
         let empty = medication(supply: 0)
         #expect(SupplyForecastService.projection(
-            for: empty, engine: DoseScheduleEngine(), preferences: .default,
+            for: empty, engine: DoseScheduleEngine(deviceClock: .atHome), preferences: .default,
             now: Self.date(2026, 7, 16), calendar: Self.calendar
         ) == nil)
 
         let untracked = Medication(displayName: "No Tracking")
         #expect(SupplyForecastService.projection(
-            for: untracked, engine: DoseScheduleEngine(), preferences: .default,
+            for: untracked, engine: DoseScheduleEngine(deviceClock: .atHome), preferences: .default,
             now: Self.date(2026, 7, 16), calendar: Self.calendar
         ) == nil)
     }

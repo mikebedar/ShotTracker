@@ -16,12 +16,16 @@ nonisolated struct ZonedTimeFormatter {
     let home: TimeZone
     let local: TimeZone
     let locale: Locale
+    /// What the local side is called when it isn't the device's clock: history reads a
+    /// dose on the clock it was taken on, "2:05 AM home · 8:05 AM Paris". nil = "here".
+    let localName: String?
 
     /// `home` nil (a dose with no regimen to ask) reads as local — one time, as before.
-    init(home: TimeZone?, local: TimeZone = .current, locale: Locale = .current) {
+    init(home: TimeZone?, local: TimeZone = .current, locale: Locale = .current, localName: String? = nil) {
         self.home = home ?? local
         self.local = local
         self.locale = locale
+        self.localName = localName
     }
 
     /// Whether `date` reads differently on the home and the local clock.
@@ -39,6 +43,12 @@ nonisolated struct ZonedTimeFormatter {
         if !sameDay(date) {
             homeText += " " + Self.weekday(date, in: home, locale: locale)
         }
+        if let localName {
+            return String(
+                localized: "\(homeText) home · \(localText) \(localName)",
+                comment: "A dose time on the home clock and on the clock of the place it was logged in, e.g. 2:05 AM home · 8:05 AM Paris"
+            )
+        }
         return String(
             localized: "\(homeText) home · \(localText) here",
             comment: "A dose time on the medication's home clock and on the device's clock, e.g. 8:00 AM home · 2:00 PM here"
@@ -54,6 +64,12 @@ nonisolated struct ZonedTimeFormatter {
         let hereText = sameDay(date)
             ? Self.time(date, in: local, locale: locale)
             : Self.shortDateTime(date, in: local, locale: locale)
+        if let localName {
+            return String(
+                localized: "\(homeText) home · \(hereText) \(localName)",
+                comment: "A dose date and time on the home clock and on the clock of the place it was logged in"
+            )
+        }
         return String(
             localized: "\(homeText) home · \(hereText) here",
             comment: "A dose date and time on the medication's home clock and on the device's clock"
@@ -68,6 +84,12 @@ nonisolated struct ZonedTimeFormatter {
         var homeText = Self.time(date, in: home, locale: locale)
         if !sameDay(date) {
             homeText += " " + Self.weekday(date, in: home, locale: locale, width: .wide)
+        }
+        if let localName {
+            return String(
+                localized: "\(homeText) home time, \(localText) \(localName) time",
+                comment: "Spoken dose time on the home clock and on the clock of the place it was logged in"
+            )
         }
         return String(
             localized: "\(homeText) home time, \(localText) local time",

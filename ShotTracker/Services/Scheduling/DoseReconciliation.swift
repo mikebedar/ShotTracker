@@ -19,6 +19,17 @@ import Foundation
 ///    that day's new occurrences, earliest first: a once-a-day med edited after today's
 ///    dose doesn't ask for a second one today.
 ///
+/// **Travel.** A slot that follows the device moves to the local clock when the device's
+/// zone changes (its key gains `@zone`, so step 1 misses), and step 2 finds the row of the
+/// same slot on the same **local day** — each side's date read on its own clock, so New
+/// York's Oct 23 morning and Paris's Oct 23 morning are one dose. A taken or skipped row
+/// absorbs the new occurrence (no second "Morning" that day). An open row moves to the
+/// new clock only if its window there hasn't closed yet: a zone change never moves a
+/// takeable dose into the past (an evening dose due over the Atlantic stays on New York's
+/// clock until its window closes) and a missed dose stays as it was recorded — unless its
+/// slot is still ahead on the new clock (flying west: the morning missed in Paris is
+/// still to come in New York, the same local day).
+///
 /// Pruning: an unmatched, untouched row inside the generated range is deleted when it
 /// belongs to the current regimen version (an old rolling grid, a phantom) or its window
 /// hasn't closed yet (a slot the edit removed). Closed windows of older versions and
@@ -36,9 +47,12 @@ enum DoseReconciliation {
         let timingID: UUID?
         let isCompleted: Bool
         let isUntouched: Bool
+        /// The zone the row's times are on when it isn't the home zone (nil = home).
+        let clockTimeZoneIdentifier: String?
 
         init(id: UUID, occurrenceKey: String, regimenVersion: Int, scheduledAt: Date, windowEnd: Date,
-             timingLabel: String, timingID: UUID?, isCompleted: Bool, isUntouched: Bool) {
+             timingLabel: String, timingID: UUID?, isCompleted: Bool, isUntouched: Bool,
+             clockTimeZoneIdentifier: String? = nil) {
             self.id = id
             self.occurrenceKey = occurrenceKey
             self.regimenVersion = regimenVersion
@@ -48,6 +62,7 @@ enum DoseReconciliation {
             self.timingID = timingID
             self.isCompleted = isCompleted
             self.isUntouched = isUntouched
+            self.clockTimeZoneIdentifier = clockTimeZoneIdentifier
         }
 
         @MainActor
@@ -61,7 +76,8 @@ enum DoseReconciliation {
                 timingLabel: dose.timingLabel,
                 timingID: dose.timingID,
                 isCompleted: dose.completedAt != nil,
-                isUntouched: dose.isUntouched
+                isUntouched: dose.isUntouched,
+                clockTimeZoneIdentifier: dose.clockTimeZoneIdentifier
             )
         }
     }
@@ -98,13 +114,17 @@ enum DoseReconciliation {
             }
         }
 
-        // 2. Same slot, same day.
+        // 2. Same slot, same day — the day on each side's own clock.
+        let rowDays = Dictionary(uniqueKeysWithValues: existing.map {
+            ($0.id, Self.day(of: $0.scheduledAt, clock: $0.clockTimeZoneIdentifier, home: calendar))
+        })
+        func day(of occurrence: GeneratedDoseOccurrence) -> DateComponents {
+            Self.day(of: occurrence.scheduledAt, clock: occurrence.clockTimeZoneIdentifier, home: calendar)
+        }
         var remaining: [GeneratedDoseOccurrence] = []
         for occurrence in pending {
-            let day = calendar.startOfDay(for: occurrence.scheduledAt)
-            let sameDay = existing.filter {
-                !matched.contains($0.id) && calendar.isDate($0.scheduledAt, inSameDayAs: day)
-            }
+            let occurrenceDay = day(of: occurrence)
+            let sameDay = existing.filter { !matched.contains($0.id) && rowDays[$0.id] == occurrenceDay }
             let candidate =
                 sameDay.first { $0.timingID != nil && $0.timingID == occurrence.timingID }
                 ?? sameDay.first { $0.timingID == nil && $0.timingLabel == occurrence.timingLabel }
@@ -114,21 +134,25 @@ enum DoseReconciliation {
                 continue
             }
             matched.insert(candidate.id)
-            if !candidate.isCompleted {
-                plan.updates.append((candidate.id, occurrence))
-            }
             // A completed candidate absorbs the occurrence: nothing to insert.
+            guard !candidate.isCompleted else { continue }
+            // Moving to another clock only while the dose stays takeable there: never into
+            // a window that has already closed.
+            if candidate.clockTimeZoneIdentifier != occurrence.clockTimeZoneIdentifier, occurrence.windowEnd < now {
+                continue
+            }
+            plan.updates.append((candidate.id, occurrence))
         }
 
         // 3. Completed rows with no slot left still count against their day.
-        var leftoverCompletedByDay: [Date: Int] = [:]
+        var leftoverCompletedByDay: [DateComponents: Int] = [:]
         for row in existing where !matched.contains(row.id) && row.isCompleted {
-            leftoverCompletedByDay[calendar.startOfDay(for: row.scheduledAt), default: 0] += 1
+            leftoverCompletedByDay[rowDays[row.id] ?? DateComponents(), default: 0] += 1
         }
         for occurrence in remaining.sorted(by: { $0.scheduledAt < $1.scheduledAt }) {
-            let day = calendar.startOfDay(for: occurrence.scheduledAt)
-            if let count = leftoverCompletedByDay[day], count > 0 {
-                leftoverCompletedByDay[day] = count - 1
+            let occurrenceDay = day(of: occurrence)
+            if let count = leftoverCompletedByDay[occurrenceDay], count > 0 {
+                leftoverCompletedByDay[occurrenceDay] = count - 1
                 continue
             }
             plan.inserts.append(occurrence)
@@ -144,5 +168,15 @@ enum DoseReconciliation {
         }
 
         return plan
+    }
+
+    /// The calendar date `date` falls on, on `clock`'s clock (nil = the home calendar's).
+    static func day(of date: Date, clock: String?, home: Calendar) -> DateComponents {
+        var calendar = home
+        if let clock, let zone = TimeZone(identifier: clock) {
+            calendar.timeZone = zone
+        }
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return DateComponents(year: components.year, month: components.month, day: components.day)
     }
 }

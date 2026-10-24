@@ -29,11 +29,19 @@ struct ComingUpRow: View {
             Spacer(minLength: 0)
 
             // The group header already names the day.
-            Text(times.time(dose.scheduledAt))
-                .font(Theme.Font.text(.footnote).weight(.semibold))
-                .foregroundStyle(Theme.Color.textSecondary)
-                .multilineTextAlignment(.trailing)
-                .accessibilityLabel(times.spokenTime(dose.scheduledAt))
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(clockText.point(dose.scheduledAt))
+                    .font(Theme.Font.text(.footnote).weight(.semibold))
+                    .foregroundStyle(Theme.Color.textSecondary)
+                    .accessibilityLabel(clockText.spokenPoint(dose.scheduledAt))
+                if let detail = clockText.detail(dose.scheduledAt) {
+                    Text(detail)
+                        .font(Theme.Font.text(.caption))
+                        .foregroundStyle(Theme.Color.textTertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+            .multilineTextAlignment(.trailing)
         }
         .padding(.vertical, Theme.Spacing.s2)
         .opacity(isForecasted ? 0.65 : 1)
@@ -41,8 +49,11 @@ struct ComingUpRow: View {
         .accessibilityIdentifier(AccessibilityID.scheduledDoseRow(dose.id))
     }
 
-    /// Home clock, plus the local one when the device is in another zone.
-    private var times: ZonedTimeFormatter {
-        ZonedTimeFormatter(home: medication?.homeTimeZone(forVersion: dose.regimenVersion))
+    @Environment(\.dayParts) private var dayParts
+
+    /// The dose's clock: "6:00 AM" at home, "Morning (Paris) · 6:00 AM" away (see
+    /// `DoseClockText`).
+    private var clockText: DoseClockText {
+        DoseClockText(dose: dose, medication: medication, dayParts: dayParts)
     }
 }

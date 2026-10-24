@@ -58,8 +58,15 @@ enum TestSupport {
         return medication
     }
 
-    static func refresh(_ context: ModelContext, at now: Date, preferences: AppPreferences? = nil) throws {
-        try DoseRepository.refreshSchedules(in: context, engine: DoseScheduleEngine(), preferences: preferences ?? .default, referenceDate: now)
+    /// Regenerates at `now`. `device` is where the phone is; nil = at each schedule's home
+    /// (no travel), which keeps the older tests independent of the host's zone.
+    static func refresh(_ context: ModelContext, at now: Date, preferences: AppPreferences? = nil, device: TimeZone? = nil) throws {
+        try DoseRepository.refreshSchedules(in: context, engine: engine(device: device), preferences: preferences ?? .default, referenceDate: now)
+    }
+
+    /// An engine with the device in `device`, or always at home (nil).
+    static func engine(device: TimeZone? = nil) -> DoseScheduleEngine {
+        DoseScheduleEngine(deviceClock: device.map { .fixed($0) } ?? .atHome)
     }
 
     static func doses(of medication: Medication, onDayOf date: Date, calendar: Calendar? = nil) -> [ScheduledDose] {

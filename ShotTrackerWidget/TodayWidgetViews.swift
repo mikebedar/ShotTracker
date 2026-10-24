@@ -10,15 +10,16 @@ struct TodayWidgetEntryView: View {
     var body: some View {
         let resolved = entry.snapshot.resolvedItems(at: entry.date)
         let showNames = entry.snapshot.showMedicationNames
+        let dayParts = entry.snapshot.dayParts ?? .standard
 
         Group {
             switch family {
             case .systemSmall:
-                SmallWidgetView(items: resolved, showNames: showNames)
+                SmallWidgetView(items: resolved, showNames: showNames, dayParts: dayParts)
             case .systemLarge:
-                ListWidgetView(items: resolved, showNames: showNames, maxRows: 7)
+                ListWidgetView(items: resolved, showNames: showNames, maxRows: 7, dayParts: dayParts)
             default:
-                ListWidgetView(items: resolved, showNames: showNames, maxRows: 3)
+                ListWidgetView(items: resolved, showNames: showNames, maxRows: 3, dayParts: dayParts)
             }
         }
         .widgetURL(WidgetShared.todayDeepLink)
@@ -31,6 +32,7 @@ struct TodayWidgetEntryView: View {
 struct SmallWidgetView: View {
     let items: [ResolvedWidgetItem]
     let showNames: Bool
+    var dayParts: DayParts = .standard
 
     var body: some View {
         if let top = items.first {
@@ -63,9 +65,18 @@ struct SmallWidgetView: View {
                         .foregroundStyle(WidgetStatusStyle.color(top.status))
                 }
 
-                Text(top.item.timeText)
+                Text(top.item.timeText(dayParts: dayParts))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .minimumScaleFactor(0.75)
+                // Away from home: the other clock's time, "Home: Night · by 6:00 AM".
+                if let detail = top.item.detailText(dayParts: dayParts) {
+                    Text(detail)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         } else {
@@ -80,6 +91,7 @@ struct ListWidgetView: View {
     let items: [ResolvedWidgetItem]
     let showNames: Bool
     let maxRows: Int
+    var dayParts: DayParts = .standard
 
     private var overdueCount: Int { items.filter { $0.status == .overdue }.count }
 
@@ -103,7 +115,7 @@ struct ListWidgetView: View {
                 }
 
                 ForEach(items.prefix(maxRows)) { resolved in
-                    DoseRow(resolved: resolved, showNames: showNames)
+                    DoseRow(resolved: resolved, showNames: showNames, dayParts: dayParts)
                 }
 
                 if items.count > maxRows {
@@ -124,6 +136,7 @@ struct ListWidgetView: View {
 struct DoseRow: View {
     let resolved: ResolvedWidgetItem
     let showNames: Bool
+    var dayParts: DayParts = .standard
 
     private var item: WidgetDoseItem { resolved.item }
     private var color: Color { WidgetStatusStyle.color(resolved.status) }
@@ -145,7 +158,7 @@ struct DoseRow: View {
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
                 HStack(spacing: 4) {
-                    Text(item.timeText)
+                    Text(item.timeText(dayParts: dayParts))
                     if item.takeWithFood {
                         Image(systemName: "fork.knife")
                     }
@@ -153,7 +166,8 @@ struct DoseRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                // "by 12:00 PM home · 6:00 PM here" away from the home zone.
+                // "by 12:00 PM home · 6:00 PM here" or "Morning (Paris) · by 12:00 PM ·
+                // Home: Night" away from the home zone.
                 .minimumScaleFactor(0.75)
             }
 

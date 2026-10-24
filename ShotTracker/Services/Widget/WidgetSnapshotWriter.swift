@@ -68,7 +68,8 @@ enum WidgetSnapshotWriter {
         return TodayWidgetSnapshot(
             generatedAt: now,
             showMedicationNames: preferences.showMedicationNamesInWidget,
-            items: Array(items)
+            items: Array(items),
+            dayParts: preferences.dayParts
         )
     }
 
@@ -96,7 +97,9 @@ enum WidgetSnapshotWriter {
             isSkipped: dose.lastAction == .skipped,
             storedStatus: dose.status.rawValue,
             snoozeOffsetMinutes: dose.snoozeOffset > 0 ? dose.snoozeOffset : nil,
-            homeTimeZoneIdentifier: dose.homeTimeZone?.identifier
+            homeTimeZoneIdentifier: dose.homeTimeZone?.identifier,
+            slotTitle: dose.isFlexibleWindow ? dose.slotTitle : nil,
+            clockTimeZoneIdentifier: dose.clockTimeZoneIdentifier
         )
     }
 }

@@ -64,12 +64,11 @@ struct DoseReschedulingTests {
         #expect(inputs.rollingInterval == nil)
         // Fixed policy still floors generation at the regimen version's creation day
         // (createdAt == anchor here), so nothing before the version existed can be
-        // fabricated — but it doesn't block anything from the anchor forward.
-        if let notBefore = inputs.notBefore {
-            #expect(notBefore < anchor)
-        } else {
-            Issue.record("fixed policy should carry a version-creation floor")
-        }
+        // fabricated — but it doesn't block anything from the anchor forward. The floor is
+        // a day, read on each occurrence's own clock (home, or local for a slot that
+        // follows the device), not an instant.
+        #expect(inputs.notBefore == nil)
+        #expect(inputs.floorDay == anchor)
     }
 
     @Test func rollingWithNoHistoryFallsBackToRegimenAnchor() {
@@ -95,7 +94,7 @@ struct DoseReschedulingTests {
     // MARK: rolling generation via the engine
 
     @Test func weeklyTakenLateProjectsNextFromActualDate() {
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
         let anchor = Self.date(2026, 7, 7)          // Tuesday
         let taken = Self.date(2026, 7, 8, 15)       // Wednesday, a day late
         let med = Self.weeklyMedication(policy: .rescheduleFromLastDose, anchor: anchor, takenAt: taken)
@@ -126,7 +125,7 @@ struct DoseReschedulingTests {
     }
 
     @Test func fixedWeeklyStaysOnOriginalWeekday() {
-        let engine = DoseScheduleEngine()
+        let engine = DoseScheduleEngine(deviceClock: .atHome)
         let anchor = Self.date(2026, 7, 7) // Tuesday
         let taken = Self.date(2026, 7, 8)  // taken Wednesday
         let med = Self.weeklyMedication(policy: .keepToSchedule, anchor: anchor, takenAt: taken)

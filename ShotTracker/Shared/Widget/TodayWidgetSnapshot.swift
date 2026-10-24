@@ -51,6 +51,9 @@ struct TodayWidgetSnapshot: Codable {
     var showMedicationNames: Bool
     /// Already ordered for display: overdue first, then upcoming-today. Capped by the writer.
     var items: [WidgetDoseItem]
+    /// The routine windows as parts of the day, for "Home: Night" away from home.
+    /// Optional so older snapshots decode (nil = the default windows).
+    var dayParts: DayParts? = nil
 
     static let empty = TodayWidgetSnapshot(generatedAt: .distantPast, showMedicationNames: true, items: [])
 
@@ -104,6 +107,12 @@ struct WidgetDoseItem: Codable, Identifiable {
     /// The regimen's home zone, so the widget can show "home · here" times. Optional so
     /// older snapshots decode (nil = the device's zone, one time).
     var homeTimeZoneIdentifier: String? = nil
+    /// The slot's display name ("Morning", "Before bed"). Optional for older snapshots
+    /// (nil = derived from `timingLabel`).
+    var slotTitle: String? = nil
+    /// The zone a slot that follows the device was planned on ("Europe/Paris"); nil = the
+    /// home zone. Optional for older snapshots.
+    var clockTimeZoneIdentifier: String? = nil
 
     var id: String { occurrenceKey }
 
@@ -123,7 +132,16 @@ struct WidgetDoseItem: Codable, Identifiable {
     /// 6:00 PM here".
     var timeText: String { timeText() }
 
-    func timeText(localTimeZone: TimeZone = .current) -> String {
+    ///
+    /// A named slot away from home names its clock and, briefly, the other one (decided
+    /// 2026-10-23): "Morning (Paris) · by 12:00 PM · Home: Night" for a slot that follows
+    /// the device, "Morning (home) · by 12:00 PM · Here: Afternoon" for one kept home;
+    /// `detailText` has the other clock's time for the small widget.
+    func timeText(localTimeZone: TimeZone = .current, dayParts: DayParts = .standard) -> String {
+        if let slot = slotLabel(localTimeZone: localTimeZone, dayParts: dayParts), !slot.isOneClock {
+            let head = String(localized: "\(slot.title) · by \(slot.time(deadline))", comment: "Widget: a slot away from home and its deadline, e.g. Morning (Paris) · by 12:00 PM")
+            return slot.shortDetail.map { head + " · " + $0 } ?? head
+        }
         let times = ZonedTimeFormatter(
             home: homeTimeZoneIdentifier.flatMap(TimeZone.init(identifier:)),
             local: localTimeZone
@@ -132,6 +150,29 @@ struct WidgetDoseItem: Codable, Identifiable {
             return "by " + times.time(deadline)
         }
         return times.time(scheduledAt)
+    }
+
+    /// The other clock with its time, for a slot away from home: "Home: Night · by 6:00 AM".
+    func detailText(localTimeZone: TimeZone = .current, dayParts: DayParts = .standard) -> String? {
+        guard let slot = slotLabel(localTimeZone: localTimeZone, dayParts: dayParts), !slot.isOneClock else { return nil }
+        return slot.detail(deadline, by: true)
+    }
+
+    /// How a flexible (named-slot) dose reads on its clock; nil for a precise dose.
+    func slotLabel(localTimeZone: TimeZone = .current, dayParts: DayParts = .standard) -> SlotClockLabel? {
+        guard isFlexibleWindow else { return nil }
+        let home = homeTimeZoneIdentifier.flatMap(TimeZone.init(identifier:))
+        let clock = clockTimeZoneIdentifier.flatMap(TimeZone.init(identifier:)) ?? home
+        let fallbackTitle = timingLabel.replacingOccurrences(of: "-", with: " ")
+        return SlotClockLabel(
+            slotTitle: slotTitle ?? (fallbackTitle.prefix(1).uppercased() + fallbackTitle.dropFirst()),
+            windowStart: scheduledAt,
+            windowEnd: windowEnd,
+            clock: clock,
+            home: home,
+            device: localTimeZone,
+            dayParts: dayParts
+        )
     }
 
     /// Mirrors `DoseStatusEvaluator.effectiveStatus(for:now:)` exactly. **Keep in sync with

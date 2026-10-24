@@ -182,6 +182,47 @@ enum TimingAnchorKind: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// Which clock a medication's doses follow when the device is in another time zone than
+/// the schedule's home zone (decided 2026-10-23, "Morning (Paris)"). Named slots
+/// (morning … before bed) default to following the device: in Paris, "Morning" is the
+/// Paris morning. Specific times default to staying on the home clock (time-critical
+/// doses such as injections fire at the same instant wherever the user is).
+enum TravelTimePolicy: String, Codable, CaseIterable, Identifiable {
+    case followsMe
+    case staysOnHome
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .followsMe: String(localized: "Follows me", comment: "Travel setting: doses move to the local clock")
+        case .staysOnHome: String(localized: "Stays on home time", comment: "Travel setting: doses keep their home-zone times")
+        }
+    }
+
+    /// One line under the picker in Edit.
+    var explanation: String {
+        switch self {
+        case .followsMe:
+            String(localized: "When you travel, doses move to the local clock: Morning is the morning wherever you are, and the card shows what time it is at home.", comment: "Explains the Follows me travel setting")
+        case .staysOnHome:
+            String(localized: "When you travel, doses stay at their home times and remind you at that moment wherever you are; both clocks are shown.", comment: "Explains the Stays on home time travel setting")
+        }
+    }
+
+    /// The default for a timing when the medication has no explicit choice: named slots
+    /// follow the device, specific times stay home.
+    static func defaultFor(kind: TimingAnchorKind) -> TravelTimePolicy {
+        kind.isWindow ? .followsMe : .staysOnHome
+    }
+
+    /// The policy a timing follows: the medication's explicit choice, else the default
+    /// for its kind.
+    static func effective(_ explicit: TravelTimePolicy?, for timing: DailyTiming) -> TravelTimePolicy {
+        explicit ?? defaultFor(kind: timing.kind)
+    }
+}
+
 /// A flexible "anytime between" range for a dose — the reframe of "when" from a single
 /// instant to a window. `end` is treated as the same day as `start` (all slots are
 /// intra-day; no overnight windows in v1).
@@ -584,6 +625,11 @@ final class MedicationRegimen {
     /// Minimum gap (hours) enforced between actual doses under `.rescheduleFromLastDose`.
     /// nil = derive `defaultMinimumIntervalHours` from the recurrence interval.
     var minimumIntervalHours: Int?
+    /// "When travelling": `TravelTimePolicy.rawValue`, or nil = by timing kind (named
+    /// slots follow the device, specific times stay home). nil on every regimen written
+    /// before this existed, which is that default. Part of the schedule: changing it
+    /// creates a new version.
+    var travelPolicyRaw: String?
 
     var medication: Medication?
 
@@ -605,6 +651,7 @@ final class MedicationRegimen {
         createdAt: Date = .now,
         missedDosePolicy: MissedDosePolicy = .keepToSchedule,
         minimumIntervalHours: Int? = nil,
+        travelPolicy: TravelTimePolicy? = nil,
         medication: Medication? = nil
     ) {
         self.id = id
@@ -618,6 +665,7 @@ final class MedicationRegimen {
         self.createdAt = createdAt
         self.missedDosePolicyRaw = missedDosePolicy.rawValue
         self.minimumIntervalHours = minimumIntervalHours
+        self.travelPolicyRaw = travelPolicy?.rawValue
         self.medication = medication
         self.phases = []
         self.reminderPolicies = []
@@ -637,6 +685,17 @@ final class MedicationRegimen {
     var missedDosePolicy: MissedDosePolicy {
         get { MissedDosePolicy(rawValue: missedDosePolicyRaw) ?? .keepToSchedule }
         set { missedDosePolicyRaw = newValue.rawValue }
+    }
+
+    /// The explicit "When travelling" choice; nil = by timing kind.
+    var travelPolicy: TravelTimePolicy? {
+        get { travelPolicyRaw.flatMap(TravelTimePolicy.init(rawValue:)) }
+        set { travelPolicyRaw = newValue?.rawValue }
+    }
+
+    /// Which clock `timing`'s doses follow away from home.
+    func travelPolicy(for timing: DailyTiming) -> TravelTimePolicy {
+        TravelTimePolicy.effective(travelPolicy, for: timing)
     }
 
     /// The nominal spacing between doses, used to roll the schedule forward from the last
@@ -772,6 +831,11 @@ final class ScheduledDose {
     /// does: on time vs late is still judged against the original window. nil on rows
     /// written before snoozes were tracked = 0.
     var snoozeOffsetMinutes: Int?
+    /// The zone this dose's clock times are on when it isn't its regimen's home zone: a
+    /// slot that follows the device, generated while travelling ("Morning" on the Paris
+    /// clock). nil = the home zone — every row written before this existed, and every
+    /// dose generated at home or kept on home time.
+    var clockTimeZoneIdentifier: String?
 
     var medication: Medication?
 
@@ -792,10 +856,12 @@ final class ScheduledDose {
         lastAction: DoseActionType = .pending,
         medication: Medication? = nil,
         generatedAt: Date = .now,
-        timingID: UUID? = nil
+        timingID: UUID? = nil,
+        clockTimeZoneIdentifier: String? = nil
     ) {
         self.id = id
         self.timingID = timingID
+        self.clockTimeZoneIdentifier = clockTimeZoneIdentifier
         self.occurrenceKey = occurrenceKey
         self.regimenVersion = regimenVersion
         self.scheduledAt = scheduledAt
@@ -853,9 +919,16 @@ final class ScheduledDose {
     }
 
     /// "Morning", "Before bed", or "9:02 AM" — see `SlotTitle`. A precise dose's time
-    /// reads on its home clock (the time the user scheduled).
+    /// reads on its own clock (the time the user scheduled: home, or local for one that
+    /// follows the device).
     var slotTitle: String {
-        SlotTitle.title(label: timingLabel, scheduledAt: scheduledAt, isWindow: isFlexibleWindow, timeZone: homeTimeZone)
+        SlotTitle.title(label: timingLabel, scheduledAt: scheduledAt, isWindow: isFlexibleWindow, timeZone: clockTimeZone)
+    }
+
+    /// The zone this dose's clock times are on: `clockTimeZoneIdentifier`, else its home
+    /// zone. nil for a transient dose without either (callers pass the medication's).
+    var clockTimeZone: TimeZone? {
+        clockTimeZoneIdentifier.flatMap(TimeZone.init(identifier:)) ?? homeTimeZone
     }
 
     /// The home zone of the regimen version that generated this dose. nil for a
@@ -885,6 +958,10 @@ final class DoseEvent {
     /// For a taken dose: minutes past the original window end (0 = on time). nil for other
     /// actions and old rows.
     var minutesLate: Int?
+    /// The device's time zone when the action was logged — which clock the dose was taken
+    /// on, so history can say "8:05 AM Paris · 2:05 AM home" later, from anywhere. nil on
+    /// rows written before this existed (they read on the current device clock).
+    var timeZoneIdentifier: String?
 
     var medication: Medication?
     var scheduledDose: ScheduledDose?
@@ -897,11 +974,13 @@ final class DoseEvent {
         snoozeMinutes: Int? = nil,
         snoozeOffsetMinutes: Int? = nil,
         minutesLate: Int? = nil,
+        timeZoneIdentifier: String? = nil,
         medication: Medication? = nil,
         scheduledDose: ScheduledDose? = nil
     ) {
         self.id = id
         self.loggedAt = loggedAt
+        self.timeZoneIdentifier = timeZoneIdentifier
         self.actionRaw = action.rawValue
         self.note = note
         self.snoozeMinutes = snoozeMinutes
@@ -914,6 +993,11 @@ final class DoseEvent {
     var action: DoseActionType {
         get { DoseActionType(rawValue: actionRaw) ?? .pending }
         set { actionRaw = newValue.rawValue }
+    }
+
+    /// The zone the action was logged in (nil on old rows).
+    var timeZone: TimeZone? {
+        timeZoneIdentifier.flatMap(TimeZone.init(identifier:))
     }
 }
 

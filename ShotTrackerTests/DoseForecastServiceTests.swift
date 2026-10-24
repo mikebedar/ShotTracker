@@ -39,7 +39,7 @@ struct DoseForecastServiceTests {
 
         let items = DoseForecastService.occurrences(
             for: [medication],
-            engine: DoseScheduleEngine(),
+            engine: DoseScheduleEngine(deviceClock: .atHome),
             in: rangeStart...rangeEnd,
             preferences: .default
         )
@@ -61,7 +61,7 @@ struct DoseForecastServiceTests {
 
         let items = DoseForecastService.occurrences(
             for: [medication],
-            engine: DoseScheduleEngine(),
+            engine: DoseScheduleEngine(deviceClock: .atHome),
             in: rangeStart...rangeEnd,
             preferences: .default
         )
@@ -79,7 +79,7 @@ struct DoseForecastServiceTests {
         let limit = Self.date(2026, 7, 1, 0, 0)
 
         let next = DoseForecastService.nextOccurrence(
-            for: medication, engine: DoseScheduleEngine(), after: after, limit: limit, preferences: .default
+            for: medication, engine: DoseScheduleEngine(deviceClock: .atHome), after: after, limit: limit, preferences: .default
         )
 
         #expect(next != nil)
@@ -102,7 +102,7 @@ struct DoseForecastServiceTests {
         let groups = TodayBucketing.longRangeComingUp(
             medications: [medication],
             statusFor: { _ in .upcoming },
-            engine: DoseScheduleEngine(),
+            engine: DoseScheduleEngine(deviceClock: .atHome),
             preferences: .default,
             forecastLimit: forecastLimit,
             now: now,
@@ -136,7 +136,7 @@ struct DoseForecastServiceTests {
         let groups = TodayBucketing.longRangeComingUp(
             medications: [medication],
             statusFor: { _ in .upcoming },
-            engine: DoseScheduleEngine(),
+            engine: DoseScheduleEngine(deviceClock: .atHome),
             preferences: .default,
             forecastLimit: Self.date(2027, 1, 1, 0, 0),
             now: now,

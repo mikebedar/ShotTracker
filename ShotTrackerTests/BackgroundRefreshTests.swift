@@ -13,7 +13,7 @@ struct BackgroundRefreshTests {
 
     private func plan(_ context: ModelContext, at now: Date) throws -> NotificationScheduler.Plan {
         try #require(try BackgroundRefresh.plan(
-            context: context, engine: DoseScheduleEngine(), evaluator: DoseStatusEvaluator(),
+            context: context, engine: DoseScheduleEngine(deviceClock: .atHome), evaluator: DoseStatusEvaluator(),
             preferences: .default, now: now, calendar: T.utc
         ))
     }

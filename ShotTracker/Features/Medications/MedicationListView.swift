@@ -134,9 +134,15 @@ private struct MedicationSummaryRow: View {
                         .foregroundStyle(.secondary)
                 }
                 if let nextDose {
-                    Text("\(statusText) • \(ZonedTimeFormatter(home: nextDose.homeTimeZone).dateTime(nextDose.scheduledAt))")
+                    let clockText = clockText(for: nextDose)
+                    Text("\(statusText) • \(clockText.pointWithDate(nextDose.scheduledAt))")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                    if let detail = clockText.detail(nextDose.scheduledAt) {
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 } else {
                     Text("No upcoming doses")
                         .font(.subheadline)
@@ -153,10 +159,14 @@ private struct MedicationSummaryRow: View {
         let name = medication.spokenName
         if let nextDose {
             let status = dependencies.statusEvaluator.effectiveStatus(for: nextDose).title
-            let times = ZonedTimeFormatter(home: nextDose.homeTimeZone)
-            let time = "\(nextDose.scheduledAt.formatted(date: .abbreviated, time: .omitted)), \(times.spokenTime(nextDose.scheduledAt))"
+            let time = "\(nextDose.scheduledAt.formatted(date: .abbreviated, time: .omitted)), \(clockText(for: nextDose).spokenPoint(nextDose.scheduledAt))"
             return "\(name). \(status). Next dose \(time)."
         }
         return "\(name). No upcoming doses."
+    }
+
+    /// "Oct 23, 2026 at 6:00 AM" at home; "Morning (Paris) · …" away (`DoseClockText`).
+    private func clockText(for dose: ScheduledDose) -> DoseClockText {
+        DoseClockText(dose: dose, medication: medication, dayParts: dependencies.preferencesStore.preferences.dayParts)
     }
 }
