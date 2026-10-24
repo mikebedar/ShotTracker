@@ -122,7 +122,7 @@ struct TodayView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 120)
+                    .frame(width: 120) // ds-allow: two icon segments in the principal toolbar slot
                     .accessibilityIdentifier(AccessibilityID.todayViewModeSwitcher)
                 }
             }
@@ -169,7 +169,7 @@ struct TodayView: View {
                                 title: "Nothing scheduled today",
                                 systemImage: "sparkles",
                                 subtitle: "Enjoy your day — upcoming doses are below.",
-                                tint: Theme.Color.accent
+                                tone: .accent
                             )
                         } else {
                             EmptyStateBanner(
@@ -179,7 +179,7 @@ struct TodayView: View {
                             )
                         }
                     }
-                    bucketSection(title: "Overdue", doses: buckets.overdue, tone: .attention)
+                    bucketSection(title: "Overdue", doses: buckets.overdue, isAttention: true)
                     bucketSection(title: "Take Now", doses: buckets.takeNow)
                     bucketSection(title: "Coming Up Soon", doses: buckets.comingUpSoon)
                     bucketSection(title: "Later Today", doses: buckets.laterToday)
@@ -187,7 +187,9 @@ struct TodayView: View {
                     bucketSection(title: "Completed", doses: buckets.completed)
                     comingUpSection(groups: comingUpGroups)
                 }
-                .padding(Theme.Spacing.s4)
+                .padding(.l)
+                // iOS 27: the cards' swipe actions (Take on the leading edge, Skip trailing) outside a List.
+                .swipeActionsContainer()
             }
         }
         .background(Theme.Color.background)
@@ -208,10 +210,10 @@ struct TodayView: View {
     }
 
     @ViewBuilder
-    private func bucketSection(title: String, doses: [ScheduledDose], tone: SectionHeader.Tone = .regular) -> some View {
+    private func bucketSection(title: String, doses: [ScheduledDose], isAttention: Bool = false) -> some View {
         if !doses.isEmpty {
-            VStack(alignment: .leading, spacing: Theme.Spacing.s3) {
-                SectionHeader(title: title, count: doses.count, tone: tone)
+            Column(spacing: .m) {
+                bucketHeader(title, count: doses.count, isAttention: isAttention)
                 ForEach(doses) { dose in
                     let status = dependencies.statusEvaluator.effectiveStatus(for: dose)
                     DoseCard(
@@ -222,18 +224,44 @@ struct TodayView: View {
                         onSkip: { skipDose(dose) },
                         onUndo: { undoDose(dose) }
                     )
+                    .rowSwipeActions(swipeActions(for: dose, status: status))
                 }
             }
         }
     }
 
+    /// Atelier's section header, prominent; Overdue in the danger tone with its triangle.
+    private func bucketHeader(_ title: String, count: Int? = nil, isAttention: Bool = false) -> some View {
+        let text = isAttention
+            ? Text("\(Image(systemName: "exclamationmark.triangle.fill")) \(title)").foregroundStyle(.tone(.danger))
+            : Text(title)
+        return SectionHeader(title: text, count: count) { EmptyView() }
+            .sectionHeaderStyle(.prominent)
+    }
+
+    /// Take on the leading edge (a full swipe takes); Skip on the trailing edge, destructive: red, and a full swipe
+    /// never skips. Taken and skipped cards have none (their Undo is on the card).
+    private func swipeActions(for dose: ScheduledDose, status: DoseStatus) -> [RowAction] {
+        guard status != .takenOnTime, status != .takenLate, status != .skipped else { return [] }
+        return [
+            RowAction(id: "take", verbatim: "Take", systemImage: "checkmark",
+                      identifier: AccessibilityID.swipeTakeDose(dose.id), edge: .leading, tone: .success) {
+                takeDose(dose)
+            },
+            RowAction(id: "skip", verbatim: "Skip", systemImage: "minus.circle", role: .destructive,
+                      identifier: AccessibilityID.swipeSkipDose(dose.id)) {
+                skipDose(dose)
+            },
+        ]
+    }
+
     @ViewBuilder
     private func comingUpSection(groups: [TodayBucketing.ComingUpGroup]) -> some View {
         if !groups.isEmpty {
-            VStack(alignment: .leading, spacing: Theme.Spacing.s3) {
-                SectionHeader(title: "Coming Up")
+            Column(spacing: .m) {
+                bucketHeader("Coming Up")
                 ForEach(groups) { group in
-                    VStack(alignment: .leading, spacing: 4) {
+                    Column(alignment: .leading, spacing: .xs) {
                         DateGroupLabel(text: group.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
                         ForEach(group.items) { item in
                             ComingUpRow(dose: item.dose, medication: item.medication, isForecasted: item.isForecasted)
@@ -296,8 +324,7 @@ struct TodayView: View {
 
             if selectedDayDoses.isEmpty {
                 Text("No scheduled doses for this day.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .textRole(.explain)
             } else {
                 ForEach(selectedDayDoses) { item in
                     SimpleDoseRow(

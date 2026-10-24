@@ -11,7 +11,7 @@ struct ComingUpRow: View {
     var isForecasted: Bool = false
 
     var body: some View {
-        AdaptiveStack {
+        AdaptiveStack(spacing: .m, stacking: .atAccessibilitySizes) {
             Image(systemName: (medication?.kind ?? .oral).symbolName)
                 .foregroundStyle(Theme.Color.textTertiary)
 

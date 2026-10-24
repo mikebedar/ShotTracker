@@ -10,6 +10,7 @@ enum AccessibilityID {
     static let addMedicationButton = "button.addMedication"
     static let addMedicationModeSwitcher = "button.addMedicationModeSwitcher"
     static let deleteMedicationButton = "button.deleteMedication"
+    static let refillQuantityField = "field.refillQuantity"
     static let medicationLookupResultRow = "row.medicationLookupResult"
     static let medicationLookupVariantRow = "row.medicationLookupVariant"
     static let searchField = "field.medicationSearch"
@@ -57,5 +58,15 @@ enum AccessibilityID {
 
     static func deleteMedicationButton(_ id: UUID) -> String {
         "button.deleteMedication.\(id.uuidString)"
+    }
+
+    /// The swipe actions on a Today card (`RowAction`s; not "button.…" so tests that find the first
+    /// "button.takeDose." never pick a swipe button).
+    static func swipeTakeDose(_ id: UUID) -> String {
+        "swipe.takeDose.\(id.uuidString)"
+    }
+
+    static func swipeSkipDose(_ id: UUID) -> String {
+        "swipe.skipDose.\(id.uuidString)"
     }
 }

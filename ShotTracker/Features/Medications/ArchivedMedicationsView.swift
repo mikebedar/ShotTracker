@@ -24,7 +24,7 @@ struct ArchivedMedicationsView: View {
                 )
             } else {
                 ForEach(archivedMedications) { medication in
-                    AdaptiveStack(spacing: 12) {
+                    AdaptiveStack(spacing: .m, stacking: .atAccessibilitySizes) {
                         MedicationArtworkView(medication: medication, size: 44)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(medication.displayName)

@@ -38,7 +38,7 @@ struct SupplyRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s2) {
-            AdaptiveStack(spacing: Theme.Spacing.s2) {
+            AdaptiveStack(spacing: .s, stacking: .atAccessibilitySizes) {
                 if showPips {
                     HStack(spacing: 3) {
                         ForEach(0..<unitsPerContainer, id: \.self) { index in

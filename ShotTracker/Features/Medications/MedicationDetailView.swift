@@ -10,7 +10,7 @@ struct MedicationDetailView: View {
 
     @State private var isPresentingEdit = false
     @State private var isPresentingRefill = false
-    @State private var refillQuantityText = ""
+    @State private var feedbackPulse: FeedbackPulse?
     @Environment(\.presenter) private var presenter
 
     private var regimen: MedicationRegimen? {
@@ -29,7 +29,7 @@ struct MedicationDetailView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    AdaptiveStack(spacing: 12) {
+                    AdaptiveStack(spacing: .m, stacking: .atAccessibilitySizes) {
                         MedicationArtworkView(medication: medication)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(medication.displayName)
@@ -91,7 +91,6 @@ struct MedicationDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                     Button("Log refill") {
-                        refillQuantityText = String(medication.unitsPerContainer ?? 0)
                         isPresentingRefill = true
                     }
                 }
@@ -147,14 +146,14 @@ struct MedicationDetailView: View {
                 EditMedicationView(medication: medication)
             }
         }
-        .alert("Log refill", isPresented: $isPresentingRefill) {
-            TextField("Quantity", text: $refillQuantityText)
-                .keyboardType(.numberPad)
-            Button("Cancel", role: .cancel) {}
-            Button("Add") { logRefill() }
-        } message: {
-            Text("How many \(medication.supplyUnitLabel ?? "units") did you get? This adds a new \(medication.kind.containerNoun) to your supply.")
+        .sheet(isPresented: $isPresentingRefill) {
+            RefillSheet(defaultQuantity: medication.unitsPerContainer ?? 0,
+                        unitLabel: medication.supplyUnitLabel ?? "units",
+                        containerNoun: medication.kind.containerNoun) { quantity in
+                logRefill(quantity)
+            }
         }
+        .feedback(feedbackPulse)
     }
 
     /// Shown only away from the schedule's home zone: which clock the times are on, how
@@ -196,9 +195,11 @@ struct MedicationDetailView: View {
         return String(localized: "This device is \(relation) it. \(what) “How this schedule works” below says what long flights do; change it in Edit → When you travel.", comment: "Detail note away from the home zone")
     }
 
-    private func logRefill() {
-        guard let quantity = Int(refillQuantityText.trimmingCharacters(in: .whitespaces)), quantity > 0 else { return }
+    private func logRefill(_ quantity: Int) {
         dependencies.logRefill(quantity, for: medication, context: modelContext)
+        let unit = SupplyRow.unit(medication.supplyUnitLabel ?? "units", count: quantity)
+        presenter.toast(Toast(verbatim: "Added \(quantity) \(unit)", tone: .success))
+        feedbackPulse = FeedbackPulse(role: .success)
     }
 
     /// Archives it (history stays) with Undo in the toast, and goes back to the list.

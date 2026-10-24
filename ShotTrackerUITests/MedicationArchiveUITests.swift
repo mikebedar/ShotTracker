@@ -75,7 +75,7 @@ final class MedicationArchiveUITests: XCTestCase {
         let row = app.staticTexts[medicationName]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.swipeLeft()
-        let delete = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'button.deleteMedication.'")).firstMatch
+        let delete = app.buttons["Delete"]
         XCTAssertTrue(delete.waitForExistence(timeout: 5))
         delete.tap()
 

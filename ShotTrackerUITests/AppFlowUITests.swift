@@ -92,6 +92,36 @@ final class AppFlowUITests: XCTestCase {
         XCTAssertTrue(takeAgain.waitForExistence(timeout: 5), "After the toast's Undo the dose is takeable again")
     }
 
+    /// Today's cards swipe like list rows: a full swipe toward the trailing edge takes the dose; the leading-edge
+    /// swipe offers Skip (red) but a full swipe never skips.
+    @MainActor
+    func testFullSwipeTakesAndNeverSkips() throws {
+        let app = XCUIApplication.launchedForTesting(seedDemoData: true)
+        let metformin = row(app, containing: "Metformin, due")
+        XCTAssertTrue(metformin.waitForExistence(timeout: 10))
+        let id = doseID(of: metformin)
+        XCTAssertTrue(app.scrollUntilHittable(app.buttons["button.takeDose.\(id)"]))
+
+        // A long swipe right: Take (leading edge) performs.
+        // A long drag across the card: XCUITest's swipeRight stops short of a full swipe.
+        let start = metformin.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0)).withOffset(CGVector(dx: 0, dy: start.screenPoint.y))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .fast, thenHoldForDuration: 0.05)
+        let marked = app.staticTexts["Marked Metformin as taken"]
+        XCTAssertTrue(marked.waitForExistence(timeout: 5), "A full swipe takes")
+
+        // Another due dose: a long swipe left reveals Skip and doesn't skip.
+        let other = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH 'row.scheduledDose.' AND (label CONTAINS ', overdue' OR label CONTAINS ', due') AND NOT (label BEGINSWITH 'Metformin')"
+        )).firstMatch
+        scrollToTop(app, until: other)
+        XCTAssertTrue(app.scrollUntilHittable(other), "The demo has another open dose")
+        other.swipeLeft(velocity: .fast)
+        XCTAssertTrue(app.buttons["Skip"].firstMatch.waitForExistence(timeout: 5), "The trailing swipe offers Skip")
+        let skipped = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Skipped '")).firstMatch
+        XCTAssertFalse(skipped.waitForExistence(timeout: 2), "A full swipe never skips")
+    }
+
     @MainActor
     func testLoggingARefillUpdatesSupply() throws {
         let app = XCUIApplication.launchedForTesting(seedDemoData: true)
@@ -101,9 +131,12 @@ final class AppFlowUITests: XCTestCase {
         let logRefill = app.buttons["Log refill"]
         XCTAssertTrue(logRefill.waitForExistence(timeout: 5))
         logRefill.tap()
-        let alert = app.alerts["Log refill"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
-        alert.buttons["Add"].tap()
+        // A sheet (Atelier's SheetScaffold): the quantity field starts at the bottle size, Add in the navigation bar.
+        let field = app.textFields["field.refillQuantity"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        app.buttons["Add"].tap()
+        let added = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Added 90 tablets'")).firstMatch
+        XCTAssertTrue(added.waitForExistence(timeout: 5), "The refill's toast")
 
         let total = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "97 tablets total")).firstMatch
         XCTAssertTrue(total.waitForExistence(timeout: 5), "7 on hand + a 90-tablet bottle")

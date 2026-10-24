@@ -1,7 +1,7 @@
 import Atelier
 import SwiftUI
 
-/// Condensed single-line dose row (artwork + name + time + compact status pill),
+/// Condensed single-line dose row (artwork + name + time + a small status badge),
 /// used for lower-priority items like "Tomorrow" or a selected calendar day.
 /// `medication` is taken explicitly (not derived from `dose.medication`) so this can
 /// render forecasted, non-persisted doses too — see `DoseForecastService`.
@@ -12,7 +12,7 @@ struct SimpleDoseRow: View {
     var isForecasted: Bool = false
 
     var body: some View {
-        AdaptiveStack {
+        AdaptiveStack(spacing: .m, stacking: .atAccessibilitySizes) {
             if let medication {
                 MedicationArtworkView(medication: medication, size: 36)
             }
@@ -48,7 +48,8 @@ struct SimpleDoseRow: View {
 
             Spacer(minLength: 0)
 
-            StatusPill(status: status, style: .compact)
+            Badge(verbatim: status.title, tone: status.tone)
+                .controlSize(.small)
         }
         .padding(Theme.Spacing.s3)
         .background(Theme.Color.surface, in: RoundedRectangle(cornerRadius: 15, style: .continuous))

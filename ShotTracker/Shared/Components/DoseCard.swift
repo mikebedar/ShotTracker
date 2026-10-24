@@ -1,10 +1,15 @@
 import Atelier
 import SwiftUI
 
-/// Primary dose card: artwork + name + status pill, an action bar when actionable
+/// Primary dose card: artwork + name + status badge, an action bar when actionable
 /// (due/overdue), a "Logged"/Undo footer when resolved (taken/skipped), and an
 /// optional supply row. Presentational only — callers own the `AppDependencies`
-/// calls behind the action closures.
+/// calls behind the action closures (and its swipe actions, `.rowSwipeActions`).
+///
+/// Built on Atelier: a raised `.surface` (tinted danger with a danger border when overdue),
+/// `Badge` for the status, `AdaptiveStack(stacking: .atAccessibilitySizes)` for every row
+/// that sits side by side, and `.auditsFit` on its text so `DoseCardFitTests` catches a
+/// name cut short or pushed off a phone at AX5.
 struct DoseCard: View {
     let dose: ScheduledDose
     let status: DoseStatus
@@ -25,7 +30,7 @@ struct DoseCard: View {
     private var isOverdue: Bool { status == .overdue }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.s3) {
+        Column(spacing: .m) {
             header
 
             if isActionable, let onTake, let onSkip {
@@ -49,51 +54,54 @@ struct DoseCard: View {
                 )
             }
         }
-        .padding(Theme.Spacing.s4)
-        .background(cardBackground)
-        .themedBorder(
-            color: isOverdue ? Theme.Color.statusOverdue : Theme.Color.border,
-            strongColor: isOverdue ? Theme.Color.statusOverdue : Theme.Color.borderStrong,
-            cornerRadius: Theme.Radius.card
-        )
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.l)
+        .surface(isOverdue ? .tinted(.danger) : .raised, radius: .card)
+        .overlay {
+            if isOverdue {
+                ctx.shape(.card).strokeBorder(.tone(.danger, .border), lineWidth: ctx.isIncreasedContrast ? 2 : 1)
+            }
+        }
         .accessibilityElement(children: .contain)
     }
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.themeContext) private var ctx
 
     @ViewBuilder
     private var artwork: some View {
         if let medication {
             MedicationArtworkView(medication: medication)
         } else {
-            RoundedRectangle(cornerRadius: Theme.Radius.avatar, style: .continuous)
-                .fill(Theme.Color.surfaceSecondary)
-                .frame(width: 44, height: 44)
+            ctx.shape(.control)
+                .fill(.surfaceSubtle)
+                .frame(width: ctx.iconSize(.large) * 2, height: ctx.iconSize(.large) * 2)
         }
     }
 
-    @ViewBuilder
+    private var badge: some View {
+        Badge(verbatim: status.title, tone: status.tone)
+    }
+
     private var header: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                // Artwork and pill on one line, the text full width below — side by side
-                // the fixed-size pill left the name almost no room.
-                VStack(alignment: .leading, spacing: Theme.Spacing.s2) {
-                    HStack(alignment: .top) {
-                        artwork
-                        Spacer(minLength: Theme.Spacing.s2)
-                        StatusPill(status: status)
-                    }
-                    details
+        // Side by side up to xxxLarge; at AX1–AX5 the artwork and the badge share the first
+        // line and the text runs full width below (beside them the fixed-size badge left the
+        // name almost no room).
+        AdaptiveStack(verticalAlignment: .top, spacing: .m, stacking: .atAccessibilitySizes) {
+            if ctx.isAccessibilitySize {
+                // On a 375 pt phone at AX5 "Upcoming" beside the artwork runs past the edge: then the
+                // badge goes under it.
+                AdaptiveStack(verticalAlignment: .top, spacing: .s) {
+                    artwork
+                    Spacer(minLength: ctx.space(.s))
+                    badge
                 }
             } else {
-                HStack(alignment: .top, spacing: Theme.Spacing.s3) {
-                    artwork
-                    details
-                    Spacer(minLength: Theme.Spacing.s3)
-                    StatusPill(status: status)
-                }
+                artwork
+            }
+            details
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if !ctx.isAccessibilitySize {
+                badge
             }
         }
         .accessibilityElement(children: .combine)
@@ -106,46 +114,45 @@ struct DoseCard: View {
     }
 
     private var details: some View {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(medicationName)
-                    .font(Theme.Font.display(.headline))
-                    .foregroundStyle(Theme.Color.textPrimary)
+        Column(spacing: .xxs) {
+            Text(medicationName)
+                .textRole(.doseName)
+                .auditsFit("dose.name")
 
-                if let canonicalName {
-                    Text(canonicalName)
-                        .font(Theme.Font.text(.footnote))
-                        .foregroundStyle(Theme.Color.textTertiary)
-                }
-
-                HStack(spacing: 5) {
-                    Image(systemName: (medication?.kind ?? .oral).symbolName)
-                        .font(.caption)
-                    Text(timingText)
-                }
-                .font(Theme.Font.text(.subheadline))
-                .foregroundStyle(Theme.Color.textSecondary)
-
-                // Away from home, a slot's other clock: "Home: Night · by 6:00 AM".
-                if let timingDetail {
-                    Text(timingDetail)
-                        .font(Theme.Font.text(.footnote))
-                        .foregroundStyle(Theme.Color.textTertiary)
-                }
-
-                // "Keep at least N hours" held it back after a time zone change.
-                if let heldText {
-                    Text(heldText)
-                        .font(Theme.Font.text(.footnote))
-                        .foregroundStyle(Theme.Color.textTertiary)
-                        .accessibilityIdentifier(AccessibilityID.heldDoseNote)
-                }
-
-                if medication?.takeWithFood == true {
-                    Label("Take with food", systemImage: "fork.knife")
-                        .font(Theme.Font.text(.footnote))
-                        .foregroundStyle(Theme.Color.textTertiary)
-                }
+            if let canonicalName {
+                Text(canonicalName)
+                    .textRole(.doseDetail)
+                    .auditsFit("dose.canonicalName")
             }
+
+            Label {
+                Text(timingText).auditsFit("dose.timing")
+            } icon: {
+                Image(systemName: (medication?.kind ?? .oral).symbolName)
+                    .textRole(.caption)
+            }
+            .textRole(.doseTiming)
+
+            // Away from home, a slot's other clock: "Home: Night · by 6:00 AM".
+            if let timingDetail {
+                Text(timingDetail)
+                    .textRole(.doseDetail)
+                    .auditsFit("dose.timingDetail")
+            }
+
+            // "Keep at least N hours" held it back after a time zone change.
+            if let heldText {
+                Text(heldText)
+                    .textRole(.doseDetail)
+                    .auditsFit("dose.held")
+                    .accessibilityIdentifier(AccessibilityID.heldDoseNote)
+            }
+
+            if medication?.takeWithFood == true {
+                Label("Take with food", systemImage: "fork.knife")
+                    .textRole(.doseDetail)
+            }
+        }
     }
 
     @Environment(\.dayParts) private var dayParts
@@ -205,10 +212,10 @@ struct DoseCard: View {
 
     private var resolvedFooter: some View {
         // Stacks at AX sizes: beside Undo, a long footer broke mid-word.
-        AdaptiveStack(spacing: Theme.Spacing.s2) {
+        AdaptiveStack(spacing: .s, stacking: .atAccessibilitySizes) {
             Text(footerText)
-                .font(Theme.Font.text(.footnote))
-                .foregroundStyle(Theme.Color.textTertiary)
+                .textRole(.doseDetail)
+                .auditsFit("dose.footer")
 
             Spacer()
 
@@ -221,10 +228,10 @@ struct DoseCard: View {
     /// "Snoozed 20 min · reminder at 10:20 AM" while the snooze runs, "Snoozed 20 min"
     /// once it has ended; Undo takes the last snooze back.
     private var snoozeFooter: some View {
-        AdaptiveStack(spacing: Theme.Spacing.s2) {
+        AdaptiveStack(spacing: .s, stacking: .atAccessibilitySizes) {
             Label(snoozeText(time: times.time), systemImage: DoseStatus.snoozed.symbolName)
-                .font(Theme.Font.text(.footnote))
-                .foregroundStyle(Theme.Color.textSecondary)
+                .textRole(.doseDetail.colored(.secondary))
+                .auditsFit("dose.snooze")
                 .accessibilityLabel(SnoozeWording.spoken(snoozeText(time: times.spokenTime)))
 
             Spacer()
@@ -245,10 +252,8 @@ struct DoseCard: View {
 
     private func undoButton(action: @escaping () -> Void, hint: String) -> some View {
         Button("Undo", action: action)
-            .font(Theme.Font.text(.footnote).weight(.bold))
-            .foregroundStyle(Theme.Color.accentStrong)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
+            .textRole(.doseDetail.weighted(.bold).colored(.link))
+            .minimumTouchTarget()
             .accessibilityIdentifier(AccessibilityID.undoDoseButton(dose.id))
             .accessibilityHint(hint)
     }
@@ -268,19 +273,6 @@ struct DoseCard: View {
             return text
         }
         return status.title
-    }
-
-    @ViewBuilder
-    private var cardBackground: some View {
-        if isOverdue {
-            Rectangle().fill(Theme.Color.surface).overlay {
-                Rectangle()
-                    .fill(Theme.Color.statusOverdueSoft)
-                    .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
-            }
-        } else {
-            Rectangle().fill(Theme.Color.surface)
-        }
     }
 
     private var accessibilityLabel: String {

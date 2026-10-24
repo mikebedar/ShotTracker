@@ -1,34 +1,35 @@
 import Atelier
 import SwiftUI
 
-/// Friendly themed banner for "nothing to do" states — e.g. the Today screen when
-/// every scheduled dose is handled but there's still a look-ahead list below.
+/// Friendly banner for "nothing to do" states — e.g. the Today screen when every scheduled
+/// dose is handled but there's still a look-ahead list below. A tinted Atelier surface in its
+/// tone (Atelier's `EmptyState` is for a whole empty screen; this sits above a list).
 struct EmptyStateBanner: View {
     let title: String
     let systemImage: String
     var subtitle: String?
-    var tint: ThemeColor = Theme.Color.statusTaken
+    var tone: Tone = .success
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.s2) {
+        Column(alignment: .center, spacing: .s) {
             Image(systemName: systemImage)
-                .font(.system(size: 34))
-                .foregroundStyle(tint)
+                .font(.largeTitle)
+                .foregroundStyle(.tone(tone))
 
             Text(title)
-                .font(Theme.Font.display(.title3))
-                .foregroundStyle(Theme.Color.textPrimary)
+                .textRole(.heading)
+                .auditsFit("emptyBanner.title")
 
             if let subtitle {
                 Text(subtitle)
-                    .font(Theme.Font.text(.subheadline))
-                    .foregroundStyle(Theme.Color.textSecondary)
+                    .textRole(.explain)
                     .multilineTextAlignment(.center)
+                    .auditsFit("emptyBanner.subtitle")
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(Theme.Spacing.s6)
-        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .padding(.xl)
+        .surface(.tinted(tone), radius: .card)
         .accessibilityElement(children: .combine)
     }
 }

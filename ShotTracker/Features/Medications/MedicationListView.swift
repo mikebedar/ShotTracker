@@ -38,15 +38,15 @@ struct MedicationListView: View {
                             MedicationSummaryRow(medication: medication)
                         }
                         .accessibilityIdentifier(AccessibilityID.medicationRow(medication.id))
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
+                        // Delete archives it (history stays) with Undo in the toast; red, and a full swipe
+                        // never deletes (Atelier's rule for a destructive swipe on iOS).
+                        .rowSwipeActions([
+                            RowAction(id: "delete", verbatim: "Delete", systemImage: "trash", role: .destructive,
+                                      identifier: AccessibilityID.deleteMedicationButton(medication.id)) {
                                 MedicationArchiving.archive(medication, presenter: presenter, dependencies: dependencies,
                                                             context: modelContext)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                            .accessibilityIdentifier(AccessibilityID.deleteMedicationButton(medication.id))
-                        }
+                            },
+                        ])
                     }
                 }
 
@@ -81,7 +81,7 @@ struct MedicationListView: View {
     }
 }
 
-private struct MedicationSummaryRow: View {
+struct MedicationSummaryRow: View {
     @Environment(\.appDependencies) private var dependencies
     let medication: Medication
 
@@ -102,38 +102,39 @@ private struct MedicationSummaryRow: View {
         return dependencies.statusEvaluator.effectiveStatus(for: nextDose).title
     }
 
+    /// Atelier's `ListRow`: the avatar leading, the text full width under it at AX1–AX5 (every line it needs).
     var body: some View {
-        AdaptiveStack(spacing: 12) {
-            MedicationArtworkView(medication: medication, size: 52)
-
-            VStack(alignment: .leading, spacing: 4) {
+        ListRow {
+            Column(spacing: .xxs) {
                 Text(medication.displayName)
-                    .font(.headline)
+                    .textRole(.subheading)
+                    .auditsFit("medication.name")
                 if let canonical = AppFormatting.medicationSubtitle(for: medication) {
                     Text(canonical)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .textRole(.doseTiming)
+                        .auditsFit("medication.canonicalName")
                 }
                 if let nextDose {
                     let clockText = clockText(for: nextDose)
                     Text("\(statusText) • \(clockText.pointWithDate(nextDose.scheduledAt))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .textRole(.doseTiming)
+                        .auditsFit("medication.nextDose")
                     if let detail = clockText.detail(nextDose.scheduledAt) {
                         Text(detail)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .textRole(.doseDetail.colored(.secondary))
                     }
                 } else {
                     Text("No upcoming doses")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .textRole(.doseTiming)
                 }
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(accessibilitySummary)
+        } leading: {
+            MedicationArtworkView(medication: medication, size: 52)
+        } trailing: {
+            EmptyView()
         }
-        .padding(.vertical, 4)
     }
 
     private var accessibilitySummary: String {

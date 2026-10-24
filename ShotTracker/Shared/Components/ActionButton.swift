@@ -20,14 +20,14 @@ struct ActionButton: View {
 
     var body: some View {
         Button(role: role, action: action) {
-            HStack(spacing: 6) {
+            Row(spacing: .xs) {
                 if let systemImage {
                     Image(systemName: systemImage)
                 }
                 Text(title)
             }
-            .font(Theme.Font.text(.subheadline).weight(.bold))
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .textRole(.actionTitle)
+            .frame(maxWidth: .infinity, minHeight: TouchTarget.minimum)
         }
         .buttonStyle(ActionButtonStyle(kind: kind))
         .applying(accessibilityIdentifier: accessibilityIdentifier, accessibilityHint: accessibilityHint)
@@ -35,33 +35,30 @@ struct ActionButton: View {
 }
 
 private struct ActionButtonStyle: ButtonStyle {
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.themeContext) private var ctx
 
     let kind: ActionButton.Kind
 
     func makeBody(configuration: Configuration) -> some View {
-        let width = contrast == .increased ? Theme.BorderWidth.highContrast : Theme.BorderWidth.regular
+        let width = ctx.isIncreasedContrast ? Theme.BorderWidth.highContrast : Theme.BorderWidth.regular
 
         configuration.label
-            .background(background, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .background(background, in: ctx.shape(.control))
             .foregroundStyle(foreground)
-            .overlay(
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .strokeBorder(borderColor, lineWidth: width)
-            )
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .overlay(ctx.shape(.control).strokeBorder(borderColor, lineWidth: width))
+            .opacity(configuration.isPressed ? 0.7 : 1) // ds-allow: pressed feedback, as before
     }
 
     private var background: AnyShapeStyle {
         switch kind {
-        case .primary(let urgent): AnyShapeStyle(urgent ? Theme.Color.statusOverdue : Theme.Color.accent)
+        case .primary(let urgent): AnyShapeStyle(urgent ? .tone(.danger, .fill) : Theme.Color.accent)
         case .secondary, .quiet: AnyShapeStyle(.clear)
         }
     }
 
     private var foreground: ThemeColor {
         switch kind {
-        case .primary: Theme.Color.accentOn
+        case .primary(let urgent): urgent ? .tone(.danger, .onFill) : Theme.Color.accentOn
         case .secondary: Theme.Color.textPrimary
         case .quiet: Theme.Color.textSecondary
         }
@@ -69,7 +66,7 @@ private struct ActionButtonStyle: ButtonStyle {
 
     private var borderColor: ThemeColor {
         switch kind {
-        case .primary(let urgent): urgent ? Theme.Color.statusOverdue : Theme.Color.accent
+        case .primary(let urgent): urgent ? .tone(.danger, .fill) : Theme.Color.accent
         case .secondary: Theme.Color.borderStrong
         case .quiet: Theme.Color.border
         }
@@ -92,10 +89,10 @@ private extension View {
     }
 }
 
-/// Take/Snooze/Skip row for a dose. Adapts to vertical layout at accessibility text
-/// sizes, ported from the layout logic previously duplicated in `TodayView`.
+/// Take/Snooze/Skip row for a dose: side by side, full-width buttons one under the other
+/// at the accessibility text sizes (Atelier's `AdaptiveStack(stacking: .atAccessibilitySizes)`,
+/// one layout, so a button keeps its identity and focus when the size changes).
 struct DoseActionBar: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let doseID: UUID
     let status: DoseStatus
@@ -105,13 +102,7 @@ struct DoseActionBar: View {
     var onSkip: () -> Void
 
     var body: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(spacing: Theme.Spacing.s2) { buttons }
-            } else {
-                HStack(spacing: Theme.Spacing.s2) { buttons }
-            }
-        }
+        AdaptiveStack(horizontalAlignment: .center, spacing: .s, stacking: .atAccessibilitySizes) { buttons }
     }
 
     @ViewBuilder

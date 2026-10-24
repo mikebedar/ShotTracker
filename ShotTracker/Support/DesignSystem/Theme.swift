@@ -94,3 +94,16 @@ extension View {
         modifier(ThemedCapsuleBorderModifier(color: color))
     }
 }
+
+/// ShotTracker's text roles on Atelier's ramp (Dynamic Type styles, so they follow Larger Text to AX5 and the
+/// Text Size setting). Titles take the theme's display design: SF Rounded in ShotTracker's theme.
+extension TextRole {
+    /// A medication's name on a card or row.
+    static let doseName = TextRole("doseName", style: .headline, usesHeadingWeight: true, usesDisplayDesign: true)
+    /// The timing line under it.
+    static let doseTiming = TextRole("doseTiming", style: .subheadline, color: .secondary)
+    /// Small print: the canonical name, the other clock, footers.
+    static let doseDetail = TextRole("doseDetail", style: .footnote, color: .tertiary)
+    /// Take / Snooze / Skip.
+    static let actionTitle = TextRole("actionTitle", style: .subheadline, weight: .bold)
+}

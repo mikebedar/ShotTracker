@@ -117,59 +117,45 @@ struct MedicationHistoryView: View {
         }
     }
 
+    /// One chip per medication with history (archived ones included) plus All; picking one shows only its history.
     private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.s2) {
-                chip(title: "All", isSelected: selectedMedicationID == nil) {
-                    selectedMedicationID = nil
-                }
-                ForEach(medicationsWithHistory) { medication in
-                    chip(
-                        title: medication.displayName,
-                        isSelected: selectedMedicationID == medication.id
-                    ) {
-                        selectedMedicationID = medication.id
-                    }
-                }
+        ChipBar(.scrolling) {
+            Chip("All", isSelected: Binding(
+                get: { selectedMedicationID == nil },
+                set: { if $0 { selectedMedicationID = nil } }
+            ))
+            .accessibilityHint("Shows every medication's history.")
+            ForEach(medicationsWithHistory) { medication in
+                Chip(verbatim: medication.displayName, isSelected: Binding(
+                    get: { selectedMedicationID == medication.id },
+                    set: { selectedMedicationID = $0 ? medication.id : nil }
+                ))
+                .accessibilityHint("Shows only this medication's history.")
             }
-            .padding(.vertical, Theme.Spacing.s1)
         }
+        .padding(.vertical, .xs)
     }
 
+    /// Atelier's stats: equal columns, one per row on a phone at the accessibility sizes, the figure never cut.
     private var adherenceCard: some View {
-        AdaptiveStack(spacing: Theme.Spacing.s4) {
-            statTile(
-                value: adherence.adherencePercent.map { "\($0)%" } ?? "—",
-                label: "30-day adherence",
-                emphasized: true
-            )
-            statTile(value: "\(adherence.currentStreakDays)", label: "day streak")
+        StatGrid(maximumColumns: 2) {
+            Stat(verbatim: "30-day adherence", value: adherence.adherencePercent.map { "\($0)%" } ?? "—",
+                 systemImage: "percent")
+                .valueTone(.accent)
+            Stat(verbatim: "Day streak", value: "\(adherence.currentStreakDays)", systemImage: "flame")
             if let slot = adherence.mostMissedSlot {
-                statTile(value: SlotTitle.title(label: slot), label: "most missed")
+                Stat(verbatim: "Most missed", value: SlotTitle.title(label: slot), systemImage: "exclamationmark.circle")
+                    .valueStyle(.text)
             }
             if adherence.snoozedCount > 0 {
-                statTile(value: "\(adherence.snoozedCount)", label: "taken after a snooze")
+                Stat(verbatim: "Taken after a snooze", value: "\(adherence.snoozedCount)",
+                     systemImage: DoseStatus.snoozed.symbolName)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, Theme.Spacing.s2)
+        .statStyle(.plain)
+        .padding(.vertical, .s)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(adherenceAccessibilityLabel)
-    }
-
-    private func statTile(value: String, label: String, emphasized: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value)
-                .font(Theme.Font.display(.title2))
-                .foregroundStyle(emphasized ? Theme.Color.accentStrong : Theme.Color.textPrimary)
-                // A time ("4:58 PM" most missed) broke mid-word in a four-tile row.
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            Text(label)
-                .font(Theme.Font.text(.caption))
-                .foregroundStyle(Theme.Color.textSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var adherenceAccessibilityLabel: String {
@@ -185,21 +171,5 @@ struct MedicationHistoryView: View {
             parts.append("\(adherence.snoozedCount) taken after a snooze")
         }
         return parts.joined(separator: ", ")
-    }
-
-    private func chip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(Theme.Font.text(.footnote).weight(.semibold))
-                .foregroundStyle(isSelected ? Theme.Color.accentOn : Theme.Color.textSecondary)
-                .padding(.horizontal, Theme.Spacing.s3)
-                .padding(.vertical, Theme.Spacing.s2)
-                .background(
-                    Capsule().fill(isSelected ? AnyShapeStyle(Theme.Color.accent) : AnyShapeStyle(Theme.Color.accentSoft.opacity(0.4)))
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityHint("Shows only this medication's history.")
     }
 }
