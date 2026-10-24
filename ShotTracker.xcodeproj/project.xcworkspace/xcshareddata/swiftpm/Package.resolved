@@ -1,0 +1,15 @@
+{
+  "originHash" : "8b2b365755515b834ff587e3c62d4e3d63b189249e065a3ec22ccbef1fa42d8c",
+  "pins" : [
+    {
+      "identity" : "atelier",
+      "kind" : "remoteSourceControl",
+      "location" : "git@github.com:mikebedar/Atelier.git",
+      "state" : {
+        "revision" : "2d97e26ca572f99b7532d132046c1700104f4925",
+        "version" : "0.5.1"
+      }
+    }
+  ],
+  "version" : 3
+}

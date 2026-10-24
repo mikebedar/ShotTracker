@@ -11,6 +11,9 @@
 		9CF418010000000000000012 /* ZonedTimeFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF418010000000000000011 /* ZonedTimeFormatter.swift */; };
 		9CF41801000000000000F014 /* SlotClockLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF41801000000000000F013 /* SlotClockLabel.swift */; };
 		9CF41801000000000000000D /* ShotTrackerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9CF418010000000000000002 /* ShotTrackerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		9CF41801A7E1000000000101 /* Atelier in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF41801A7E1000000000201 /* Atelier */; };
+		9CF41801A7E1000000000102 /* AtelierTestingCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF41801A7E1000000000202 /* AtelierTestingCore */; };
+		9CF41801A7E1000000000103 /* AtelierTheme in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF41801A7E1000000000203 /* AtelierTheme */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -112,6 +115,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9CF41801A7E1000000000101 /* Atelier in Frameworks */,
+				9CF41801A7E1000000000102 /* AtelierTestingCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -133,6 +138,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9CF41801A7E1000000000103 /* AtelierTheme in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -186,6 +192,8 @@
 			);
 			name = ShotTracker;
 			packageProductDependencies = (
+				9CF41801A7E1000000000201 /* Atelier */,
+				9CF41801A7E1000000000202 /* AtelierTestingCore */,
 			);
 			productName = ShotTracker;
 			productReference = 9CF417782F8A89BF00E9BDF3 /* ShotTracker.app */;
@@ -254,6 +262,7 @@
 			);
 			name = ShotTrackerWidgetExtension;
 			packageProductDependencies = (
+				9CF41801A7E1000000000203 /* AtelierTheme */,
 			);
 			productName = ShotTrackerWidgetExtension;
 			productReference = 9CF418010000000000000002 /* ShotTrackerWidgetExtension.appex */;
@@ -294,6 +303,9 @@
 			);
 			mainGroup = 9CF4176F2F8A89BF00E9BDF3;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9CF41801A7E1000000000301 /* XCRemoteSwiftPackageReference "Atelier" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9CF417792F8A89BF00E9BDF3 /* Products */;
 			projectDirPath = "";
@@ -767,6 +779,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9CF41801A7E1000000000301 /* XCRemoteSwiftPackageReference "Atelier" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "git@github.com:mikebedar/Atelier.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9CF41801A7E1000000000201 /* Atelier */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9CF41801A7E1000000000301 /* XCRemoteSwiftPackageReference "Atelier" */;
+			productName = Atelier;
+		};
+		9CF41801A7E1000000000202 /* AtelierTestingCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9CF41801A7E1000000000301 /* XCRemoteSwiftPackageReference "Atelier" */;
+			productName = AtelierTestingCore;
+		};
+		9CF41801A7E1000000000203 /* AtelierTheme */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9CF41801A7E1000000000301 /* XCRemoteSwiftPackageReference "Atelier" */;
+			productName = AtelierTheme;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9CF417702F8A89BF00E9BDF3 /* Project object */;
 }
