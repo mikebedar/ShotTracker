@@ -116,6 +116,16 @@ struct MedicationDetailView: View {
                 }
             }
 
+            if let regimen {
+                Section(String(localized: "How this schedule works", comment: "Detail: the schedule summary's heading")) {
+                    ScheduleSummaryView(summary: ScheduleSummary(
+                        ScheduleSummary.Inputs(regimen: regimen),
+                        preferences: dependencies.preferencesStore.preferences
+                    ))
+                    .padding(.vertical, Theme.Spacing.s1)
+                }
+            }
+
             Section {
                 Button("Delete Medication", role: .destructive) {
                     isPresentingDeleteConfirmation = true
@@ -190,7 +200,7 @@ struct MedicationDetailView: View {
         } else {
             what = String(localized: "Its named times follow you to \(place) time; its specific times stay at their home times and show both clocks.", comment: "Detail note: a medication with both kinds of timing")
         }
-        return String(localized: "This device is \(relation) it. \(what) Change this in Edit → When travelling.", comment: "Detail note away from the home zone")
+        return String(localized: "This device is \(relation) it. \(what) “How this schedule works” below says what long flights do; change it in Edit → When you travel.", comment: "Detail note away from the home zone")
     }
 
     private func logRefill() {

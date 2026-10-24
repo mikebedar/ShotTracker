@@ -17,6 +17,9 @@ struct GeneratedDoseOccurrence: Identifiable, Hashable {
     /// The zone this occurrence's clock times are on when it isn't the regimen's home
     /// zone (a slot that follows the device while travelling); nil = home.
     var clockTimeZoneIdentifier: String? = nil
+    /// Hours mode: the N that held this occurrence back (its start moved to N hours after
+    /// the slot's last dose); nil = the usual start. Set by `DoseReconciliation`.
+    var spacingHoldHours: Int? = nil
 
     /// The window end, or a precise dose's time plus its grace (`ScheduledDose.windowEnd`).
     var windowEnd: Date {
@@ -91,9 +94,21 @@ final class DoseScheduleEngine {
         preferences: AppPreferences
     ) -> [GeneratedDoseOccurrence] {
         let inputs = DoseRescheduling.engineInputs(for: medication, regimen: regimen)
-        return generateOccurrences(
+        return generateOccurrences(regimen: regimen, medicationID: medication.id, inputs: inputs, from: startDate, through: endDate, preferences: preferences)
+    }
+
+    /// The same with the missed-dose policy's inputs given (plain values).
+    func generateOccurrences(
+        regimen: MedicationRegimen,
+        medicationID: UUID,
+        inputs: DoseRescheduling.EngineInputs,
+        from startDate: Date,
+        through endDate: Date,
+        preferences: AppPreferences
+    ) -> [GeneratedDoseOccurrence] {
+        generateOccurrences(
             for: regimen,
-            medicationID: medication.id,
+            medicationID: medicationID,
             from: startDate,
             through: endDate,
             preferences: preferences,

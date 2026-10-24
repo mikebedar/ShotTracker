@@ -25,7 +25,7 @@ final class MedicationArchiveUITests: XCTestCase {
         nameField.tap()
         nameField.typeText(medicationName)
 
-        app.buttons["button.saveMedication"].tap()
+        app.saveMedication()
 
         let medicationRow = app.staticTexts[medicationName]
         XCTAssertTrue(medicationRow.waitForExistence(timeout: 5))

@@ -23,9 +23,17 @@ struct MedicationDraft {
     /// regimen's own when editing (an edit made while travelling used to re-home the
     /// schedule to wherever the phone was). Changing it creates a new regimen version.
     var homeTimeZoneIdentifier = TimeZone.current.identifier
-    /// "When travelling": nil = by timing kind (named slots follow the device, specific
+    /// The travel clock ("When you travel → Clock"): nil = by timing kind (named slots follow the device, specific
     /// times stay home). Changing what it means for any timing is a schedule change.
     var travelPolicy: TravelTimePolicy?
+    /// "Long trips & date lines" (calendar day / at least N hours).
+    var travelSpacing: TravelSpacing = .calendarDay
+    /// The N of hours mode. Follows the frequency (`TravelSettings.defaultMinimumHours`)
+    /// until the user changes it (`travelMinimumHoursSet`).
+    var travelMinimumHours = 20
+    var travelMinimumHoursSet = false
+    /// "Landing during a dose".
+    var travelLanding: TravelLanding = .finishOnOldClock
     var frequency: ScheduleFrequency = .daily
     var intervalDays = 1
     /// Defaults to today's weekday / day of month, not a fixed Monday / the 1st.
@@ -71,6 +79,10 @@ struct MedicationDraft {
             anchorDate = regimen.anchorDate
             homeTimeZoneIdentifier = regimen.timeZoneIdentifier
             travelPolicy = regimen.travelPolicy
+            travelSpacing = regimen.travelSpacing
+            travelMinimumHours = regimen.effectiveTravelMinimumHours
+            travelMinimumHoursSet = regimen.travelMinimumHours != nil
+            travelLanding = regimen.travelLanding
             frequency = regimen.recurrenceRule.frequency
             intervalDays = regimen.recurrenceRule.intervalDays
             weekdays = Set(regimen.recurrenceRule.weekdays)
@@ -142,6 +154,9 @@ struct MedicationDraft {
         return !calendar.isDate(anchorDate, inSameDayAs: regimen.anchorDate)
             || homeTimeZoneIdentifier != regimen.timeZoneIdentifier
             || effectiveTravelPolicies != timings.map { TravelTimePolicy.effective(regimen.travelPolicy, for: $0) }
+            || travelSpacing != regimen.travelSpacing
+            || (travelSpacing == .minimumHours && effectiveTravelMinimumHours != regimen.effectiveTravelMinimumHours)
+            || travelLanding != regimen.travelLanding
             || recurrenceRule != regimen.recurrenceRule
             || timings != regimen.timings
             || graceWindowMinutes != regimen.graceWindowMinutes
@@ -154,7 +169,67 @@ struct MedicationDraft {
         missedDosePolicy == .rescheduleFromLastDose ? minimumIntervalDays * 24 : nil
     }
 
-    /// What "When travelling" means for each timing. Picking the default explicitly
+    /// The N hours mode uses: the user's, else the frequency's default.
+    var effectiveTravelMinimumHours: Int {
+        travelMinimumHoursSet ? travelMinimumHours : TravelSettings.defaultMinimumHours(for: recurrenceRule)
+    }
+
+    /// The three travel choices as values (the example and the summary read these).
+    var travelSettings: TravelSettings {
+        TravelSettings(clock: travelPolicy, spacing: travelSpacing, minimumHours: effectiveTravelMinimumHours, landing: travelLanding)
+    }
+
+    /// A new medication's travel choices follow its kind and timings until the user picks
+    /// one (`TravelSettings.suggested`).
+    mutating func applySuggestedTravelSettings() {
+        let suggested = TravelSettings.suggested(kind: kind, timeSensitive: timeSensitiveOverride, timings: timings, rule: recurrenceRule)
+        travelPolicy = suggested.clock
+        travelSpacing = suggested.spacing
+        travelLanding = suggested.landing
+    }
+
+    /// The schedule as the travel example simulates it.
+    var exampleSchedule: TravelExample.Schedule {
+        TravelExample.Schedule(
+            timings: timings,
+            rule: recurrenceRule,
+            anchorDate: anchorDate,
+            graceWindowMinutes: graceWindowMinutes,
+            missedDosePolicy: missedDosePolicy,
+            home: TimeZone(identifier: homeTimeZoneIdentifier) ?? .current,
+            travel: travelSettings
+        )
+    }
+
+    /// The schedule as "How this schedule works" describes it.
+    var summaryInputs: ScheduleSummary.Inputs {
+        let steps = ScheduleSummary.phaseSteps(phases.enumerated().map { index, phase in
+            let isLast = index == phases.count - 1
+            let days: Int? = isLast && phase.isOngoing ? nil : max(1, phase.durationDays)
+            let title = phase.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Phase \(index + 1)" : phase.title
+            return (title, RecurrenceRule(frequency: phase.frequency, intervalDays: phase.intervalDays), days)
+        })
+        let reminders = reminderPolicy
+        return ScheduleSummary.Inputs(
+            timings: timings,
+            rule: recurrenceRule,
+            phaseSteps: frequency == .phased ? steps : [],
+            graceWindowMinutes: graceWindowMinutes,
+            missedDosePolicy: missedDosePolicy,
+            minimumIntervalHours: minimumIntervalDays * 24,
+            home: TimeZone(identifier: homeTimeZoneIdentifier) ?? .current,
+            travel: travelSettings,
+            remindersEnabled: reminders.isEnabled,
+            dueRemindersEnabled: reminders.dueRemindersEnabled,
+            overdueRemindersEnabled: reminders.overdueRemindersEnabled,
+            escalationIntervalsMinutes: reminders.escalationIntervalsMinutes,
+            maxReminderCount: reminders.maxReminderCount,
+            allowSnooze: reminders.allowSnooze,
+            snoozeMinutes: reminders.defaultSnoozeMinutes
+        )
+    }
+
+    /// What the travel clock means for each timing. Picking the default explicitly
     /// changes nothing, so it doesn't create a new version.
     var effectiveTravelPolicies: [TravelTimePolicy] {
         timings.map { TravelTimePolicy.effective(travelPolicy, for: $0) }
@@ -257,6 +332,13 @@ struct EditMedicationView: View {
     /// Once the user touches the missed-dose picker (or when editing an existing med), the
     /// policy stops auto-following the medication kind.
     @State private var missedDosePolicyUserSet: Bool
+    /// Likewise the travel choices of a new medication follow its kind and timings
+    /// (`TravelSettings.suggested`) until the user picks one.
+    @State private var travelChoicesUserSet: Bool
+    /// The live example's destination (a zone identifier).
+    @State private var exampleDestination: String
+    /// Set by Save when the schedule is new or changed: the confirmation step.
+    @State private var pendingSummary: ScheduleSummary?
 
     let medication: Medication?
 
@@ -270,6 +352,16 @@ struct EditMedicationView: View {
         _searchModel = State(initialValue: MedicationSearchModel(lookupService: AppDependencies.shared.lookupService))
         // Editing preserves the saved policy; a brand-new med lets it follow the kind.
         _missedDosePolicyUserSet = State(initialValue: medication != nil)
+        _travelChoicesUserSet = State(initialValue: medication != nil)
+        let initialDraft = medication.map { MedicationDraft(medication: $0) } ?? MedicationDraft()
+        _exampleDestination = State(initialValue: TravelDestinations.defaultDestination(
+            from: TimeZone(identifier: initialDraft.homeTimeZoneIdentifier) ?? .current
+        ).identifier)
+        if medication == nil {
+            var suggested = MedicationDraft()
+            suggested.applySuggestedTravelSettings()
+            _draft = State(initialValue: suggested)
+        }
     }
 
     var body: some View {
@@ -294,8 +386,6 @@ struct EditMedicationView: View {
 
                 Section("Schedule") {
                     DatePicker("Starts on", selection: $draft.anchorDate, displayedComponents: .date)
-
-                    homeTimeZoneRow
 
                     Picker("Frequency", selection: $draft.frequency) {
                         ForEach(ScheduleFrequency.allCases) { frequency in
@@ -384,6 +474,8 @@ struct EditMedicationView: View {
                         )
                     }
                 }
+
+                travelSections
 
                 Section("Missed dose handling") {
                     Picker("If a dose is late", selection: Binding(
@@ -493,6 +585,28 @@ struct EditMedicationView: View {
             if !missedDosePolicyUserSet {
                 draft.missedDosePolicy = MissedDosePolicy.defaultFor(kind: newKind)
             }
+            followSuggestedTravelSettings()
+        }
+        .onChange(of: draft.timings.map(\.kind)) { _, _ in followSuggestedTravelSettings() }
+        .onChange(of: draft.timeSensitiveOverride) { _, _ in followSuggestedTravelSettings() }
+        .sheet(isPresented: Binding(
+            get: { pendingSummary != nil },
+            set: { if !$0 { pendingSummary = nil } }
+        )) {
+            NavigationStack {
+                if let summary = pendingSummary {
+                    ScheduleConfirmationView(
+                        name: draft.displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+                        summary: summary,
+                        onSave: {
+                            pendingSummary = nil
+                            performSave()
+                        },
+                        onKeepEditing: { pendingSummary = nil }
+                    )
+                }
+            }
+            .presentationDetents([.large])
         }
     }
 
@@ -577,12 +691,165 @@ struct EditMedicationView: View {
         }
     }
 
-    /// "Home time zone  New York (Eastern Time) ›" — the clock every time below is on.
+    private func followSuggestedTravelSettings() {
+        guard !travelChoicesUserSet else { return }
+        draft.applySuggestedTravelSettings()
+    }
+
+    private var homeZone: TimeZone {
+        TimeZone(identifier: draft.homeTimeZoneIdentifier) ?? .current
+    }
+
+    /// "When you travel" (decided 2026-10-23, branch `travel-options`): the home zone and
+    /// the three choices — the clock, long trips & date lines, landing during a dose —
+    /// each option with its one-line explanation, then a live example computed by the
+    /// engine on a trip to a destination the user can change.
+    @ViewBuilder
+    private var travelSections: some View {
+        let follows = draft.travelSettings.anyFollows(draft.timings)
+        Section {
+            homeTimeZoneRow
+        } header: {
+            Text(String(localized: "When you travel", comment: "Edit: the travel section's title"))
+        } footer: {
+            Text(String(localized: "Three choices decide what your doses do away from home. The example below shows them on a trip.", comment: "Edit: travel section footer"))
+        }
+
+        Section(String(localized: "Clock", comment: "Edit: the travel clock choice")) {
+            Picker(String(localized: "Clock", comment: "Edit: the travel clock choice"), selection: Binding<TravelTimePolicy?>(
+                get: { draft.travelPolicy ?? draft.defaultTravelPolicy },
+                set: { draft.travelPolicy = $0; travelChoicesUserSet = true }
+            )) {
+                if draft.defaultTravelPolicy == nil {
+                    optionLabel(
+                        String(localized: "Automatic", comment: "Travel setting: named times follow, specific times stay home"),
+                        String(localized: "Named times (Morning, Evening…) follow you; specific times stay on home time.", comment: "Explains the Automatic travel setting")
+                    )
+                    .tag(TravelTimePolicy?.none)
+                }
+                ForEach(TravelTimePolicy.allCases) { policy in
+                    optionLabel(policy.title, policy.explanation).tag(TravelTimePolicy?.some(policy))
+                }
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
+            .accessibilityIdentifier(AccessibilityID.travelPolicyPicker)
+        }
+
+        Section {
+            Picker(String(localized: "Long trips & date lines", comment: "Edit: the travel spacing choice"), selection: Binding(
+                get: { draft.travelSpacing },
+                set: { draft.travelSpacing = $0; travelChoicesUserSet = true }
+            )) {
+                ForEach(TravelSpacing.allCases) { spacing in
+                    optionLabel(spacing.title(hours: draft.effectiveTravelMinimumHours), spacing.explanation(hours: draft.effectiveTravelMinimumHours))
+                        .tag(spacing)
+                }
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
+            .accessibilityIdentifier(AccessibilityID.travelSpacingPicker)
+
+            if draft.travelSpacing == .minimumHours {
+                Stepper(
+                    String(localized: "At least \(draft.effectiveTravelMinimumHours) hours", comment: "Edit: the minimum hours between doses"),
+                    value: Binding(
+                        get: { draft.effectiveTravelMinimumHours },
+                        set: { draft.travelMinimumHours = $0; draft.travelMinimumHoursSet = true; travelChoicesUserSet = true }
+                    ),
+                    in: 1...max(24, TravelSettings.nominalHours(for: draft.recurrenceRule))
+                )
+                .accessibilityIdentifier(AccessibilityID.travelHoursStepper)
+            }
+        } header: {
+            Text(String(localized: "Long trips & date lines", comment: "Edit: the travel spacing choice"))
+        } footer: {
+            if !follows {
+                Text(String(localized: "Doses on home time never move, so this only matters for doses that follow you.", comment: "Edit: travel spacing footer when nothing follows"))
+            }
+        }
+        .disabled(!follows)
+
+        Section {
+            Picker(String(localized: "Landing during a dose", comment: "Edit: the travel landing choice"), selection: Binding(
+                get: { draft.travelLanding },
+                set: { draft.travelLanding = $0; travelChoicesUserSet = true }
+            )) {
+                ForEach(TravelLanding.allCases) { landing in
+                    optionLabel(landing.title, landing.explanation).tag(landing)
+                }
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
+            .accessibilityIdentifier(AccessibilityID.travelLandingPicker)
+        } header: {
+            Text(String(localized: "Landing during a dose", comment: "Edit: the travel landing choice"))
+        } footer: {
+            if !follows {
+                Text(String(localized: "Doses on home time keep their times when you land.", comment: "Edit: travel landing footer when nothing follows"))
+            }
+        }
+        .disabled(!follows)
+
+        Section(String(localized: "Example", comment: "Edit: the live travel example")) {
+            NavigationLink {
+                TravelDestinationPickerView(selection: $exampleDestination, home: homeZone)
+            } label: {
+                LabeledContent(
+                    String(localized: "Trip to", comment: "Edit: the example's destination"),
+                    value: SlotClockLabel.placeName(of: TimeZone(identifier: exampleDestination) ?? .current)
+                )
+            }
+            .accessibilityIdentifier(AccessibilityID.travelDestinationRow)
+
+            if let example = travelExample {
+                VStack(alignment: .leading, spacing: Theme.Spacing.s2) {
+                    Text(example.heading)
+                        .font(.subheadline.weight(.semibold))
+                    ForEach(Array(example.lines.enumerated()), id: \.offset) { _, line in
+                        Text(line)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.vertical, Theme.Spacing.s1)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier(AccessibilityID.travelExample)
+            }
+        }
+    }
+
+    /// The example for the form as it stands, from tomorrow on the home clock.
+    private var travelExample: TravelExample? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = homeZone
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now)) ?? .now
+        return TravelExample.make(
+            schedule: draft.exampleSchedule,
+            destination: TimeZone(identifier: exampleDestination) ?? .current,
+            preferences: dependencies.preferencesStore.preferences,
+            from: max(tomorrow, calendar.startOfDay(for: draft.anchorDate))
+        )
+    }
+
+    /// An inline picker option: the choice and its one-line explanation.
+    private func optionLabel(_ title: String, _ explanation: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            Text(explanation)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// "Home time zone  New York (Eastern Time) ›" — the clock every time above is on.
     /// Away from it, a one-tap switch to the device's zone (a new regimen version: future
     /// doses move to the same wall-clock times here, history stays as it was).
     @ViewBuilder
     private var homeTimeZoneRow: some View {
-        let home = TimeZone(identifier: draft.homeTimeZoneIdentifier) ?? .current
+        let home = homeZone
         NavigationLink {
             TimeZonePickerView(selection: $draft.homeTimeZoneIdentifier)
         } label: {
@@ -592,7 +859,7 @@ struct EditMedicationView: View {
 
         if home.secondsFromGMT() != TimeZone.current.secondsFromGMT() {
             VStack(alignment: .leading, spacing: Theme.Spacing.s2) {
-                Text(String(localized: "The times below are on this clock. While you travel, each dose follows the setting below.", comment: "Edit: under the home time zone, away from it"))
+                Text(String(localized: "The schedule's times are on this clock. While you travel, each dose follows the choices below.", comment: "Edit: under the home time zone, away from it"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Button("Use This Device's Time Zone (\(ZonedTimeFormatter.displayName(of: .current)))") {
@@ -601,38 +868,6 @@ struct EditMedicationView: View {
                 .font(.footnote.weight(.semibold))
             }
         }
-
-        travelPolicyRow
-    }
-
-    /// "When travelling: Follows me / Stays on home time". The default depends on the
-    /// timings (named slots follow, specific times stay); a mix offers "Automatic".
-    @ViewBuilder
-    private var travelPolicyRow: some View {
-        let defaultPolicy = draft.defaultTravelPolicy
-        Picker(String(localized: "When travelling", comment: "Edit: the travel setting's label"), selection: Binding<TravelTimePolicy?>(
-            get: { draft.travelPolicy ?? defaultPolicy },
-            set: { draft.travelPolicy = $0 }
-        )) {
-            if defaultPolicy == nil {
-                Text(String(localized: "Automatic", comment: "Travel setting: named times follow, specific times stay home")).tag(TravelTimePolicy?.none)
-            }
-            ForEach(TravelTimePolicy.allCases) { policy in
-                Text(policy.title).tag(TravelTimePolicy?.some(policy))
-            }
-        }
-        .accessibilityIdentifier(AccessibilityID.travelPolicyPicker)
-
-        Text(travelPolicyExplanation)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-    }
-
-    private var travelPolicyExplanation: String {
-        if let policy = draft.travelPolicy ?? draft.defaultTravelPolicy {
-            return policy.explanation
-        }
-        return String(localized: "Named times (Morning, Evening…) move to the local clock when you travel; specific times stay at their home times and remind you at that moment.", comment: "Explains the Automatic travel setting")
     }
 
     private var defaultSupplyUnit: String {
@@ -730,19 +965,35 @@ struct EditMedicationView: View {
         )
     }
 
+    /// Save: a new or changed schedule first shows "How this schedule works"
+    /// (`ScheduleConfirmationView`); anything else saves at once.
     private func saveMedication() {
+        guard validate() else { return }
+        if medication == nil || draft.scheduleDiffers(from: medication?.regimens.active) {
+            pendingSummary = ScheduleSummary(draft.summaryInputs, preferences: dependencies.preferencesStore.preferences)
+        } else {
+            performSave()
+        }
+    }
+
+    private func validate() -> Bool {
         let trimmedName = draft.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
             validationMessage = "Enter a custom display name."
             focusedField = .displayName
-            return
+            return false
         }
         guard draft.frequency != .phased || !draft.phases.isEmpty else {
             validationMessage = "Add at least one phase, or pick another frequency."
-            return
+            return false
         }
-
         validationMessage = nil
+        return true
+    }
+
+    private func performSave() {
+        guard validate() else { return }
+        let trimmedName = draft.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let medication = medication ?? Medication(displayName: trimmedName)
         medication.displayName = trimmedName
@@ -796,6 +1047,9 @@ struct EditMedicationView: View {
                 missedDosePolicy: draft.missedDosePolicy,
                 minimumIntervalHours: draft.minimumIntervalHours,
                 travelPolicy: draft.travelPolicy,
+                travelSpacing: draft.travelSpacing,
+                travelMinimumHours: draft.travelMinimumHoursSet ? draft.travelMinimumHours : nil,
+                travelLanding: draft.travelLanding,
                 medication: medication
             )
             for phase in draft.makePhases() {

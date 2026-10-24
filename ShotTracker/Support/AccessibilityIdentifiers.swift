@@ -21,6 +21,15 @@ enum AccessibilityID {
     static let homeTimeZoneRow = "row.homeTimeZone"
     static let homeTimeZoneNote = "text.homeTimeZoneNote"
     static let travelPolicyPicker = "picker.travelPolicy"
+    static let travelSpacingPicker = "picker.travelSpacing"
+    static let travelHoursStepper = "stepper.travelHours"
+    static let travelLandingPicker = "picker.travelLanding"
+    static let travelDestinationRow = "row.travelDestination"
+    static let travelExample = "text.travelExample"
+    static let confirmSaveMedicationButton = "button.confirmSaveMedication"
+    static let keepEditingButton = "button.keepEditing"
+    static let scheduleSummary = "text.scheduleSummary"
+    static let heldDoseNote = "text.heldDose"
 
     static func medicationRow(_ id: UUID) -> String {
         "row.medication.\(id.uuidString)"

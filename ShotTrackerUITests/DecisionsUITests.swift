@@ -73,15 +73,14 @@ final class DecisionsUITests: XCTestCase {
         XCTAssertTrue(app.scrollUntilHittable(levothyroxine), "The kept-home demo dose is due")
         XCTAssertTrue(levothyroxine.label.contains("Morning, home time") && levothyroxine.label.contains("here it's"), levothyroxine.label)
 
-        // Edit: "When travelling" near the home time zone, set to Follows me for Metformin.
+        // Edit: the travel choices near the home time zone; Metformin's clock is Follows me.
         for _ in 0..<6 { app.swipeDown() }
         app.tab("tab.medications").tap()
         app.staticTexts["Metformin"].firstMatch.tap()
         app.buttons["Edit"].tap()
-        let picker = app.descendants(matching: .any).matching(identifier: "picker.travelPolicy").firstMatch
-        XCTAssertTrue(app.scrollUntilHittable(picker))
-        XCTAssertTrue(picker.label.contains("When travelling") || picker.value as? String == "Follows me" || picker.label.contains("Follows me"), "\(picker.label) \(String(describing: picker.value))")
-        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Follows me'")).firstMatch.exists)
+        let follows = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Follows me'")).firstMatch
+        XCTAssertTrue(app.scrollUntilHittable(follows, maxSwipes: 14), "The Clock choice offers Follows me")
+        XCTAssertTrue(follows.isSelected, "Metformin's named slots follow the device by default")
         app.buttons["Cancel"].tap()
 
         // Settings explains both.

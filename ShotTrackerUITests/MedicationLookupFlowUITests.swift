@@ -30,7 +30,7 @@ final class MedicationLookupFlowUITests: XCTestCase {
         variantRow.tap()
 
         XCTAssertTrue(app.buttons["Change"].waitForExistence(timeout: 5), "Confirmed-selection card should appear after picking a variant")
-        app.buttons["button.saveMedication"].tap()
+        app.saveMedication()
 
         let medicationRow = app.staticTexts["FUROSEMIDE"].firstMatch
         XCTAssertTrue(medicationRow.waitForExistence(timeout: 5), "Newly added medication should appear in the list")

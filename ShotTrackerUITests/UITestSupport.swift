@@ -5,7 +5,10 @@ extension XCUIApplication {
     /// starts in list mode), stubbed RxTerms/openFDA, and optionally the demo data set.
     /// `twoZones` runs the device in Paris over demo schedules written in New York
     /// (`-deviceTimeZone`, `-demoHomeTimeZone`), for the "home · here" display.
-    static func launchedForTesting(seedDemoData: Bool = false, twoZones: Bool = false) -> XCUIApplication {
+    /// `trip` (with `twoZones`): the demo is planned on its home clocks as if the phone had
+    /// just landed, with two medications on non-default travel options (`-demoTrip`).
+    /// `deviceTimeZone` alone pins the device's zone (a deterministic home for new meds).
+    static func launchedForTesting(seedDemoData: Bool = false, twoZones: Bool = false, trip: Bool = false, deviceTimeZone: String? = nil) -> XCUIApplication {
         // A previous run can leave the simulator in landscape, where the tab bar isn't a
         // tab bar any more.
         XCUIDevice.shared.orientation = .portrait
@@ -16,6 +19,9 @@ extension XCUIApplication {
         }
         if twoZones {
             app.launchArguments += ["-deviceTimeZone", "Europe/Paris", "-demoHomeTimeZone", "America/New_York"]
+            if trip { app.launchArguments.append("-demoTrip") }
+        } else if let deviceTimeZone {
+            app.launchArguments += ["-deviceTimeZone", deviceTimeZone]
         }
         app.launch()
         return app
@@ -38,7 +44,17 @@ extension XCUIApplication {
         XCTAssertTrue(nameField.waitForExistence(timeout: 10))
         nameField.tap()
         nameField.typeText(name)
+        saveMedication()
+    }
+
+    /// Taps Save in the edit form and, when the schedule is new or changed, Save again in
+    /// the "How this schedule works" confirmation.
+    func saveMedication() {
         buttons["button.saveMedication"].tap()
+        let confirm = buttons["button.confirmSaveMedication"]
+        if confirm.waitForExistence(timeout: 5) {
+            confirm.tap()
+        }
     }
 
     func scrollUntilHittable(_ element: XCUIElement, maxSwipes: Int = 10) -> Bool {

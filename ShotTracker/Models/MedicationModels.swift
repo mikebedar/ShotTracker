@@ -200,13 +200,13 @@ enum TravelTimePolicy: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// One line under the picker in Edit.
+    /// The option's one line in Edit.
     var explanation: String {
         switch self {
         case .followsMe:
-            String(localized: "When you travel, doses move to the local clock: Morning is the morning wherever you are, and the card shows what time it is at home.", comment: "Explains the Follows me travel setting")
+            String(localized: "Morning is the morning wherever you are; the time at home is shown too.", comment: "Explains the Follows me travel setting")
         case .staysOnHome:
-            String(localized: "When you travel, doses stay at their home times and remind you at that moment wherever you are; both clocks are shown.", comment: "Explains the Stays on home time travel setting")
+            String(localized: "Doses keep their home times and remind you then, wherever you are.", comment: "Explains the Stays on home time travel setting")
         }
     }
 
@@ -220,6 +220,122 @@ enum TravelTimePolicy: String, Codable, CaseIterable, Identifiable {
     /// for its kind.
     static func effective(_ explicit: TravelTimePolicy?, for timing: DailyTiming) -> TravelTimePolicy {
         explicit ?? defaultFor(kind: timing.kind)
+    }
+}
+
+/// "Long trips & date lines" (decided 2026-10-23, travel options): how a slot that follows
+/// the device is counted after a time zone change. nil on a regimen = `.calendarDay`, the
+/// behaviour before the choice existed.
+enum TravelSpacing: String, Codable, CaseIterable, Identifiable {
+    /// One dose of each slot per calendar day where you are (slot + local day).
+    case calendarDay
+    /// After a zone change, a slot's next dose waits until N hours after the last one
+    /// taken at that slot (`DoseReconciliation`, hours mode).
+    case minimumHours
+
+    var id: String { rawValue }
+
+    func title(hours: Int) -> String {
+        switch self {
+        case .calendarDay:
+            String(localized: "Count by calendar day", comment: "Travel spacing option")
+        case .minimumHours:
+            String(localized: "Keep at least \(hours) hours between doses", comment: "Travel spacing option with its number of hours")
+        }
+    }
+
+    func explanation(hours: Int) -> String {
+        switch self {
+        case .calendarDay:
+            String(localized: "One dose of each time per calendar day where you are, however long or short that day was.", comment: "Explains counting by calendar day")
+        case .minimumHours:
+            String(localized: "After a time zone change, a dose waits until \(hours) hours after the last one at that time, whatever the date.", comment: "Explains the minimum hours travel option")
+        }
+    }
+}
+
+/// "Landing during a dose": what happens to a dose that is open (or still ahead on the old
+/// clock) when the device changes time zone. nil on a regimen = `.finishOnOldClock`.
+enum TravelLanding: String, Codable, CaseIterable, Identifiable {
+    /// The open dose keeps its old clock until its window closes ("Evening (home)").
+    case finishOnOldClock
+    /// The open dose moves to the new clock at once, even when its time there has passed
+    /// (then it is overdue there).
+    case moveNow
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .finishOnOldClock: String(localized: "Finish it on the old clock", comment: "Travel landing option")
+        case .moveNow: String(localized: "Move it to the new clock now", comment: "Travel landing option")
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .finishOnOldClock:
+            String(localized: "A dose that's open when your phone changes time zone keeps its old times until its window closes.", comment: "Explains finishing an open dose on the old clock")
+        case .moveNow:
+            String(localized: "An open dose switches to local time at once; if that time has already passed there, it shows as late.", comment: "Explains moving an open dose to the new clock")
+        }
+    }
+}
+
+/// The three "When you travel" choices of a schedule, as plain values (the draft, the
+/// regimen, the example and the summary all read them through this).
+struct TravelSettings: Hashable {
+    /// nil = by timing kind ("Automatic": named slots follow, specific times stay).
+    var clock: TravelTimePolicy?
+    var spacing: TravelSpacing = .calendarDay
+    /// The N of `.minimumHours` (always set; only used in that mode).
+    var minimumHours: Int = 20
+    var landing: TravelLanding = .finishOnOldClock
+
+    func clock(for timing: DailyTiming) -> TravelTimePolicy {
+        TravelTimePolicy.effective(clock, for: timing)
+    }
+
+    /// Whether any timing follows the device (the other two choices only matter then).
+    func anyFollows(_ timings: [DailyTiming]) -> Bool {
+        timings.contains { clock(for: $0) == .followsMe }
+    }
+
+    /// Hours between two doses of the same slot when nothing moves: daily 24, every N days
+    /// N × 24, weekly the shortest gap between its weekdays, monthly 28 days.
+    static func nominalHours(for rule: RecurrenceRule) -> Int {
+        switch rule.frequency {
+        case .daily, .cycle, .phased: return 24
+        case .intervalDays: return max(1, rule.intervalDays) * 24
+        case .weekly:
+            let days = Array(Set(rule.weekdays)).sorted()
+            guard days.count > 1 else { return 7 * 24 }
+            let gaps = zip(days, days.dropFirst() + [days[0] + 7]).map { $1 - $0 }
+            return (gaps.min() ?? 7) * 24
+        case .monthly: return 28 * 24
+        }
+    }
+
+    /// The default N: the usual gap minus four hours (a daily dose: 20 hours), so a dose
+    /// can come a little early after a short hop but never close to the last one.
+    static func defaultMinimumHours(for rule: RecurrenceRule) -> Int {
+        let nominal = nominalHours(for: rule)
+        return max(nominal / 2, nominal - 4)
+    }
+
+    /// What a new medication starts with (decided 2026-10-23): time-critical doses
+    /// (injections, "break through Focus: Always") stay on home time and keep a minimum
+    /// gap; specific times keep a minimum gap; named slots of an everyday pill follow the
+    /// local clock and count by calendar day. Open doses finish on the old clock.
+    static func suggested(kind: MedicationKind, timeSensitive: Bool?, timings: [DailyTiming], rule: RecurrenceRule) -> TravelSettings {
+        let timeCritical = kind == .injection || timeSensitive == true
+        let allExact = !timings.isEmpty && timings.allSatisfy { $0.kind == .exactTime }
+        return TravelSettings(
+            clock: timeCritical ? .staysOnHome : nil,
+            spacing: timeCritical || allExact ? .minimumHours : .calendarDay,
+            minimumHours: defaultMinimumHours(for: rule),
+            landing: .finishOnOldClock
+        )
     }
 }
 
@@ -630,6 +746,14 @@ final class MedicationRegimen {
     /// before this existed, which is that default. Part of the schedule: changing it
     /// creates a new version.
     var travelPolicyRaw: String?
+    /// "Long trips & date lines": `TravelSpacing.rawValue`; nil = by calendar day (every
+    /// regimen from before the choice existed). Part of the schedule.
+    var travelSpacingRaw: String?
+    /// The N of "Keep at least N hours between doses"; nil = the default for the
+    /// recurrence (`TravelSettings.defaultMinimumHours`).
+    var travelMinimumHours: Int?
+    /// "Landing during a dose": `TravelLanding.rawValue`; nil = finish on the old clock.
+    var travelLandingRaw: String?
 
     var medication: Medication?
 
@@ -652,10 +776,16 @@ final class MedicationRegimen {
         missedDosePolicy: MissedDosePolicy = .keepToSchedule,
         minimumIntervalHours: Int? = nil,
         travelPolicy: TravelTimePolicy? = nil,
+        travelSpacing: TravelSpacing? = nil,
+        travelMinimumHours: Int? = nil,
+        travelLanding: TravelLanding? = nil,
         medication: Medication? = nil
     ) {
         self.id = id
         self.version = version
+        self.travelSpacingRaw = travelSpacing?.rawValue
+        self.travelMinimumHours = travelMinimumHours
+        self.travelLandingRaw = travelLanding?.rawValue
         self.anchorDate = anchorDate
         self.timeZoneIdentifier = timeZoneIdentifier
         self.recurrenceRule = recurrenceRule
@@ -696,6 +826,27 @@ final class MedicationRegimen {
     /// Which clock `timing`'s doses follow away from home.
     func travelPolicy(for timing: DailyTiming) -> TravelTimePolicy {
         TravelTimePolicy.effective(travelPolicy, for: timing)
+    }
+
+    /// "Long trips & date lines" (nil = by calendar day).
+    var travelSpacing: TravelSpacing {
+        get { travelSpacingRaw.flatMap(TravelSpacing.init(rawValue:)) ?? .calendarDay }
+        set { travelSpacingRaw = newValue.rawValue }
+    }
+
+    /// "Landing during a dose" (nil = finish on the old clock).
+    var travelLanding: TravelLanding {
+        get { travelLandingRaw.flatMap(TravelLanding.init(rawValue:)) ?? .finishOnOldClock }
+        set { travelLandingRaw = newValue.rawValue }
+    }
+
+    var effectiveTravelMinimumHours: Int {
+        travelMinimumHours ?? TravelSettings.defaultMinimumHours(for: recurrenceRule)
+    }
+
+    /// The three travel choices as values.
+    var travelSettings: TravelSettings {
+        TravelSettings(clock: travelPolicy, spacing: travelSpacing, minimumHours: effectiveTravelMinimumHours, landing: travelLanding)
     }
 
     /// The nominal spacing between doses, used to roll the schedule forward from the last
@@ -836,6 +987,11 @@ final class ScheduledDose {
     /// clock). nil = the home zone — every row written before this existed, and every
     /// dose generated at home or kept on home time.
     var clockTimeZoneIdentifier: String?
+    /// Set while "Keep at least N hours between doses" holds this dose back after a time
+    /// zone change: its window opens N hours after the last dose of its slot instead of
+    /// at the usual time (`scheduledAt` is that later start). nil = not held — every row
+    /// written before this existed.
+    var spacingHoldHours: Int?
 
     var medication: Medication?
 
@@ -857,10 +1013,12 @@ final class ScheduledDose {
         medication: Medication? = nil,
         generatedAt: Date = .now,
         timingID: UUID? = nil,
-        clockTimeZoneIdentifier: String? = nil
+        clockTimeZoneIdentifier: String? = nil,
+        spacingHoldHours: Int? = nil
     ) {
         self.id = id
         self.timingID = timingID
+        self.spacingHoldHours = spacingHoldHours
         self.clockTimeZoneIdentifier = clockTimeZoneIdentifier
         self.occurrenceKey = occurrenceKey
         self.regimenVersion = regimenVersion

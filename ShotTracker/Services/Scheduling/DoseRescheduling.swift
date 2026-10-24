@@ -19,7 +19,22 @@ enum DoseRescheduling {
         var floorDay: Date? = nil
     }
 
+    /// The latest taken dose, as plain values (what rolling generation counts from).
+    struct LastTakenDose: Hashable {
+        let completedAt: Date
+        let timingID: UUID?
+        let timingLabel: String
+    }
+
     static func engineInputs(for medication: Medication, regimen: MedicationRegimen) -> EngineInputs {
+        let last = medication.lastTakenDose.flatMap { dose in
+            dose.completedAt.map { LastTakenDose(completedAt: $0, timingID: dose.timingID, timingLabel: dose.timingLabel) }
+        }
+        return engineInputs(regimen: regimen, lastTaken: last)
+    }
+
+    /// `engineInputs(for:regimen:)` on plain values (the travel example's simulated trip).
+    static func engineInputs(regimen: MedicationRegimen, lastTaken lastDose: LastTakenDose?) -> EngineInputs {
         let calendar = Self.calendar(for: regimen)
 
         // Only `.rescheduleFromLastDose`, on a frequency with a single nominal interval,
@@ -28,8 +43,7 @@ enum DoseRescheduling {
         guard
             regimen.missedDosePolicy == .rescheduleFromLastDose,
             let interval = regimen.nominalIntervalComponents,
-            let lastDose = medication.lastTakenDose,
-            let lastTaken = lastDose.completedAt
+            let lastDose
         else {
             return EngineInputs(
                 anchor: regimen.anchorDate,
@@ -39,6 +53,7 @@ enum DoseRescheduling {
             )
         }
 
+        let lastTaken = lastDose.completedAt
         return EngineInputs(
             anchor: calendar.startOfDay(for: lastTaken),
             notBefore: lastTaken,

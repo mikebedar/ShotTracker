@@ -13,6 +13,10 @@ import Foundation
 ///   simulator won't schedule one).
 /// - `-deviceTimeZone <identifier>`: run as if the device were in that zone
 ///   (`NSTimeZone.default`), e.g. `Europe/Paris` — for the "home · here" display.
+/// - `-demoTrip` (with the two above): the demo's doses are planned on their home clocks,
+///   as if the phone had just landed, and two medications with non-default travel options
+///   are added ("Malarone": keep 20 hours, a dose held back; "Doxycycline": move an open
+///   dose to the new clock now).
 /// - `-demoHomeTimeZone <identifier>`: the zone `DemoData`'s schedules are written in
 ///   (default: the device's), e.g. `America/New_York` with `-deviceTimeZone Europe/Paris`
 ///   for a two-zone Today.
@@ -23,6 +27,7 @@ nonisolated enum LaunchOptions {
     static let stubsNetwork = arguments.contains("-uiTestStubNetwork")
     static let seedsDemoData = arguments.contains("-seedDemoData")
     static let runsBackgroundRefresh = arguments.contains("-runBackgroundRefresh")
+    static let demoTrip = arguments.contains("-demoTrip")
     static let deviceTimeZone = value(after: "-deviceTimeZone").flatMap(TimeZone.init(identifier:))
     static let demoHomeTimeZone = value(after: "-demoHomeTimeZone").flatMap(TimeZone.init(identifier:))
 
@@ -35,6 +40,7 @@ nonisolated enum LaunchOptions {
     static let stubsNetwork = false
     static let seedsDemoData = false
     static let runsBackgroundRefresh = false
+    static let demoTrip = false
     static let deviceTimeZone: TimeZone? = nil
     static let demoHomeTimeZone: TimeZone? = nil
     #endif

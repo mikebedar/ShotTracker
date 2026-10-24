@@ -161,7 +161,7 @@ final class AppFlowUITests: XCTestCase {
         let addPhase = app.buttons["Add Phase"]
         XCTAssertTrue(app.scrollUntilHittable(addPhase))
         addPhase.tap()
-        app.buttons["button.saveMedication"].tap()
+        app.saveMedication()
 
         app.staticTexts["Taper Test"].firstMatch.tap()
         let summary = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Phase 1: daily, 7 days")).firstMatch

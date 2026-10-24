@@ -18,35 +18,24 @@ enum DoseRepository {
         horizonDays: Int = materializationLookaheadDays
     ) throws {
         let medications = try MedicationRepository.fetchMedications(in: context)
-        let calendar = Calendar(identifier: .gregorian)
-        let start = calendar.date(byAdding: .day, value: -materializationLookbackDays, to: referenceDate) ?? referenceDate
-        let end = calendar.date(byAdding: .day, value: horizonDays, to: referenceDate) ?? referenceDate
 
         for medication in medications where medication.isActive {
             guard let regimen = MedicationRepository.currentRegimen(for: medication) else { continue }
 
-            let generated = engine.generateOccurrences(
-                for: medication,
-                regimen: regimen,
-                from: start,
-                through: end,
-                preferences: preferences
-            )
-
-            var regimenCalendar = Calendar(identifier: .gregorian)
-            regimenCalendar.timeZone = regimen.homeTimeZone
-            // Travelling, the slots that follow the device start their range at the
-            // device's midnight: prune only where both clocks generated.
-            var deviceCalendar = Calendar(identifier: .gregorian)
-            deviceCalendar.timeZone = engine.deviceTimeZone(home: regimen.homeTimeZone)
-            let plan = DoseReconciliation.plan(
+            // Generation + diff are pure (`DoseReconciliation.refreshPlan`), shared with the
+            // travel example's simulated trip.
+            let lastTaken = medication.lastTakenDose.flatMap { dose in
+                dose.completedAt.map { DoseRescheduling.LastTakenDose(completedAt: $0, timingID: dose.timingID, timingLabel: dose.timingLabel) }
+            }
+            let plan = DoseReconciliation.refreshPlan(
                 existing: medication.scheduledDoses.map(DoseReconciliation.Row.init),
-                generated: generated,
-                currentVersion: regimen.version,
-                rangeStart: max(regimenCalendar.startOfDay(for: start), deviceCalendar.startOfDay(for: start)),
-                rangeEnd: end,
-                now: referenceDate,
-                calendar: regimenCalendar
+                regimen: regimen,
+                medicationID: medication.id,
+                lastTaken: lastTaken,
+                engine: engine,
+                preferences: preferences,
+                referenceDate: referenceDate,
+                horizonDays: horizonDays
             )
 
             let doseByID = Dictionary(uniqueKeysWithValues: medication.scheduledDoses.map { ($0.id, $0) })
@@ -62,6 +51,7 @@ enum DoseRepository {
                 existing.regimenVersion = regimen.version
                 existing.timingID = occurrence.timingID
                 existing.clockTimeZoneIdentifier = occurrence.clockTimeZoneIdentifier
+                existing.spacingHoldHours = occurrence.spacingHoldHours
             }
 
             for occurrence in plan.inserts {
@@ -77,7 +67,8 @@ enum DoseRepository {
                     medication: medication,
                     generatedAt: referenceDate,
                     timingID: occurrence.timingID,
-                    clockTimeZoneIdentifier: occurrence.clockTimeZoneIdentifier
+                    clockTimeZoneIdentifier: occurrence.clockTimeZoneIdentifier,
+                    spacingHoldHours: occurrence.spacingHoldHours
                 )
                 medication.scheduledDoses.append(dose)
                 context.insert(dose)

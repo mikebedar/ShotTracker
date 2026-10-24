@@ -22,7 +22,7 @@ final class MedicationEditFlowUITests: XCTestCase {
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
         nameField.tap()
         nameField.typeText(medicationName)
-        app.buttons["button.saveMedication"].tap()
+        app.saveMedication()
 
         // Open the medication's detail screen.
         let medicationRow = app.staticTexts[medicationName]
@@ -52,8 +52,9 @@ final class MedicationEditFlowUITests: XCTestCase {
         // until it materializes rather than asserting on the initial viewport.
         let missedDoseHeader = app.staticTexts["Missed dose handling"]
         var attempts = 0
-        while !missedDoseHeader.exists && attempts < 8 {
-            app.swipeUp()
+        // The travel sections sit above it since 2026-10-23: more, slower swipes.
+        while !missedDoseHeader.exists && attempts < 20 {
+            app.swipeUp(velocity: .slow)
             attempts += 1
         }
         XCTAssertTrue(

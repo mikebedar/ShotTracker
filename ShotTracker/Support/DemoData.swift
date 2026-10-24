@@ -65,6 +65,31 @@ enum DemoData {
                 travelPolicy: .staysOnHome, anchor: weekAgo, in: context)
         }
 
+        // `-demoTrip`: planned at home, the phone just landed. Malarone keeps 20 hours
+        // between doses (its morning, written on the device clock, opens in an hour: 20
+        // hours after yesterday's home-clock dose, taken 19 hours ago); Doxycycline (set up
+        // in Dubai, two hours ahead of Paris) moves an open dose to the new clock now, so
+        // its open Dubai morning becomes the later Paris one.
+        let plannedAtHome = LaunchOptions.demoTrip && isAway
+        if plannedAtHome {
+            add("Malarone", canonical: "atovaquone-proguanil", kind: .oral,
+                rule: RecurrenceRule(frequency: .daily),
+                timings: [DailyTiming(kind: .morning, customWindow: DoseWindow(start: localClock(-60), end: localClock(180)))],
+                travelPolicy: .followsMe, travelSpacing: .minimumHours, anchor: weekAgo, in: context)
+            let dubai = TimeZone(identifier: "Asia/Dubai") ?? homeZone
+            var dubaiCalendar = Calendar(identifier: .gregorian)
+            dubaiCalendar.timeZone = dubai
+            let dubaiNow = dubaiCalendar.component(.hour, from: now) * 60 + dubaiCalendar.component(.minute, from: now)
+            let dubaiClock = { (offset: Int) -> ClockTime in
+                let total = min(max(0, dubaiNow + offset), 23 * 60 + 59)
+                return ClockTime(hour: total / 60, minute: total % 60)
+            }
+            add("Doxycycline", canonical: "doxycycline 100 mg", kind: .oral,
+                rule: RecurrenceRule(frequency: .daily),
+                timings: [DailyTiming(kind: .morning, customWindow: DoseWindow(start: dubaiClock(-30), end: dubaiClock(150)))],
+                travelPolicy: .followsMe, travelLanding: .moveNow, homeZone: dubai, anchor: weekAgo, in: context)
+        }
+
         // Coming up soon / later today: every other day, an hour from now.
         add("Vitamin D", canonical: nil, kind: .oral,
             rule: RecurrenceRule(frequency: .intervalDays, intervalDays: 2),
@@ -108,10 +133,14 @@ enum DemoData {
         try? context.save()
 
         // Materialize, then log a believable past week: mostly taken, a skip, a miss.
-        try? DoseRepository.refreshSchedules(in: context, engine: DoseScheduleEngine(), preferences: AppPreferencesStore.shared.preferences, referenceDate: now)
+        try? DoseRepository.refreshSchedules(
+            in: context, engine: DoseScheduleEngine(deviceClock: plannedAtHome ? .atHome : .system),
+            preferences: AppPreferencesStore.shared.preferences, referenceDate: now
+        )
         let doses = (try? context.fetch(FetchDescriptor<ScheduledDose>(sortBy: [SortDescriptor(\.scheduledAt)]))) ?? []
         var snoozedOne = false
-        for (index, dose) in doses.enumerated() where dose.scheduledAt < today {
+        let tripMedications: Set<String> = ["Malarone", "Doxycycline"]
+        for (index, dose) in doses.enumerated() where dose.scheduledAt < today && !tripMedications.contains(dose.medication?.displayName ?? "") {
             if index % 9 == 4 { continue }  // missed
             // One of yesterday's Metformin doses was snoozed near the end of its window
             // and taken a little late: "Taken 15 min late · snoozed 20 min" in History.
@@ -128,6 +157,12 @@ enum DemoData {
         // Today: Vitamin B12 already taken, so Completed has something in it.
         if let b12 = doses.first(where: { $0.medication?.displayName == "Vitamin B12" && calendar.isDate($0.scheduledAt, inSameDayAs: now) }) {
             try? DoseRepository.applyAction(.taken, to: b12, now: now, context: context)
+        }
+        // Malarone's last dose: the home-clock morning 19 hours ago, taken when it opened.
+        if plannedAtHome, let last = doses.first(where: {
+            $0.medication?.displayName == "Malarone" && abs($0.scheduledAt.timeIntervalSince(now.addingTimeInterval(-19 * 3600))) < 120
+        }) {
+            try? DoseRepository.applyAction(.taken, to: last, now: last.scheduledAt, timeZone: homeZone, context: context)
         }
         if let lisinopril = (try? context.fetch(FetchDescriptor<Medication>()))?.first(where: { $0.displayName == "Lisinopril" }) {
             try? MedicationRepository.logRefill(90, for: lisinopril, now: calendar.date(byAdding: .day, value: -30, to: now) ?? now, in: context)
@@ -148,6 +183,9 @@ enum DemoData {
         withFood: Bool = false,
         policy: MissedDosePolicy? = nil,
         travelPolicy: TravelTimePolicy? = nil,
+        travelSpacing: TravelSpacing? = nil,
+        travelLanding: TravelLanding? = nil,
+        homeZone: TimeZone? = nil,
         anchor: Date,
         in context: ModelContext
     ) -> Medication {
@@ -164,13 +202,15 @@ enum DemoData {
         )
         let regimen = MedicationRegimen(
             anchorDate: anchor,
-            timeZoneIdentifier: (LaunchOptions.demoHomeTimeZone ?? .current).identifier,
+            timeZoneIdentifier: (homeZone ?? LaunchOptions.demoHomeTimeZone ?? .current).identifier,
             recurrenceRule: rule,
             timings: timings,
             graceWindowMinutes: grace,
             createdAt: anchor,
             missedDosePolicy: policy ?? MissedDosePolicy.defaultFor(kind: kind),
             travelPolicy: travelPolicy,
+            travelSpacing: travelSpacing,
+            travelLanding: travelLanding,
             medication: medication
         )
         let reminders = ReminderPolicy()

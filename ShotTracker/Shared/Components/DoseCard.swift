@@ -131,6 +131,14 @@ struct DoseCard: View {
                         .foregroundStyle(Theme.Color.textTertiary)
                 }
 
+                // "Keep at least N hours" held it back after a time zone change.
+                if let heldText {
+                    Text(heldText)
+                        .font(Theme.Font.text(.footnote))
+                        .foregroundStyle(Theme.Color.textTertiary)
+                        .accessibilityIdentifier(AccessibilityID.heldDoseNote)
+                }
+
                 if medication?.takeWithFood == true {
                     Label("Take with food", systemImage: "fork.knife")
                         .font(Theme.Font.text(.footnote))
@@ -159,6 +167,13 @@ struct DoseCard: View {
             return String(localized: "\(slot.title) · anytime by \(slot.time(dose.deadline))", comment: "A dose slot away from home and its deadline on its own clock")
         }
         return timingText(time: clock.times.time)
+    }
+
+    /// "Opens 10:00 AM, 20 hours after your last dose" while a held dose hasn't opened.
+    private var heldText: String? {
+        guard let hours = dose.spacingHoldHours, status == .upcoming else { return nil }
+        let opens = clockText.awaySlot?.time(dose.scheduledAt) ?? clockText.times.time(dose.scheduledAt)
+        return String(localized: "Opens \(opens), \(hours) hours after your last dose", comment: "A dose held back by the minimum hours between doses")
     }
 
     private var timingDetail: String? {
@@ -269,6 +284,9 @@ struct DoseCard: View {
 
     private var accessibilityLabel: String {
         var parts = ["\(medicationName), \(status.title.lowercased()), \(spokenTimingText)."]
+        if let heldText {
+            parts.append(heldText + ".")
+        }
         if !isResolved, dose.snoozeOffset > 0 {
             parts.append("Snoozed \(SnoozeWording.duration(minutes: dose.snoozeOffset)) in all.")
         }
