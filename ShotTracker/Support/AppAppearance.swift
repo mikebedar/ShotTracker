@@ -14,8 +14,12 @@ enum AppAppearance {
         #if DEBUG
         // `-atelierTheme <id>` (Debug): start on another theme for screenshots, e.g. `canary` to find what ignores the
         // theme, or `system` to check that native chrome is untouched.
-        if let id = LaunchOptions.atelierThemeID {
-            return AtelierPreferences(transient: ThemePreferences(themeID: id), themes: ShotTrackerTheme.themes + [.canary],
+        if LaunchOptions.atelierThemeID != nil || LaunchOptions.atelierMotion != nil || LaunchOptions.atelierAppearance != nil {
+            var values = ShotTrackerTheme.defaults
+            if let id = LaunchOptions.atelierThemeID { values.themeID = id }
+            if let motion = LaunchOptions.atelierMotion.flatMap(MotionPreference.init(rawValue:)) { values.motion = motion }
+            if let appearance = LaunchOptions.atelierAppearance.flatMap(AppearanceMode.init(rawValue:)) { values.appearance = appearance }
+            return AtelierPreferences(transient: values, themes: ShotTrackerTheme.themes + [.canary],
                                       defaults: ShotTrackerTheme.defaults)
         }
         #endif
@@ -34,6 +38,8 @@ enum AppAppearance {
 
     /// Writes the preferences for the widget and asks it to redraw. Called at launch and on every change.
     static func publishToWidget(_ values: ThemePreferences) {
+        // Fixture appearance must not leak into the shared widget preferences.
+        guard !LaunchOptions.isUITesting else { return }
         guard let defaults = UserDefaults(suiteName: WidgetShared.appGroupID),
               let data = try? JSONEncoder().encode(values) else { return }
         guard defaults.data(forKey: ShotTrackerTheme.widgetPreferencesKey) != data else { return }

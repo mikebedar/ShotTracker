@@ -22,11 +22,15 @@ import Foundation
 ///   for a two-zone Today.
 /// - `-atelierTheme <id>`: start on that Atelier theme, never stored (`shottracker`, `system`, `warm`, `studio`,
 ///   `contrast`, or `canary`, which paints everything the theme reaches in loud colours).
+/// - `-atelierMotion system|reduced|off`: transient motion preference for UI checks.
+/// - `-atelierAppearance system|light|dark`: transient color scheme for captures.
 /// - `-toastPlacement top`: toasts at the top (Atelier's iPhone default) instead of above the tab bar.
 nonisolated enum LaunchOptions {
     #if DEBUG
     private static let arguments = ProcessInfo.processInfo.arguments
     static let isUITesting = arguments.contains("-uiTesting")
+    /// Visual-only captures can outlast the normal six-second Undo toast; behavior tests never set this.
+    static let holdsToastForCapture = isUITesting && arguments.contains("-uiTestHoldToast")
     static let stubsNetwork = arguments.contains("-uiTestStubNetwork")
     static let seedsDemoData = arguments.contains("-seedDemoData")
     static let runsBackgroundRefresh = arguments.contains("-runBackgroundRefresh")
@@ -34,6 +38,8 @@ nonisolated enum LaunchOptions {
     static let deviceTimeZone = value(after: "-deviceTimeZone").flatMap(TimeZone.init(identifier:))
     static let demoHomeTimeZone = value(after: "-demoHomeTimeZone").flatMap(TimeZone.init(identifier:))
     static let atelierThemeID = value(after: "-atelierTheme")
+    static let atelierMotion = value(after: "-atelierMotion")
+    static let atelierAppearance = value(after: "-atelierAppearance")
     static let toastPlacementTop = value(after: "-toastPlacement") == "top"
 
     private static func value(after flag: String) -> String? {

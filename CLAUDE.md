@@ -155,3 +155,23 @@ Branch `atelier` (2026-10-24): 188 unit tests green; full UI suite 23 of 27 gree
 - Widget and notification-action paths aren't covered by UI tests (WidgetKit and notification banners can't be driven from XCUITest here); their logic is unit-tested (`NotificationPlanner`, `TodayWidgetSnapshot.items(relevantAt:)`, `WidgetSnapshotWriter`).
 - Tab bar button identifiers can't be set (see Commands); tests find tabs by title.
 - English only. The travel strings (labels, Edit, Settings, notifications) go through `String(localized:)` with comments; older views still use literals and there is no String Catalog yet.
+
+## Motion regression checks
+
+`ShotTracker.xcworkspace` includes the sibling `../Atelier` checkout for validating shared motion changes in the real
+app. The `.xcodeproj` continues to use its tagged dependency; opening the workspace does not update that pin.
+`MotionFeedbackUITests` runs Take/Undo against fresh in-memory demo data: bottom-toast/tab-bar clearance, a resisted
+swipe returning to rest, dismissal without undoing the dose, and successive actions undoing only the latest dose.
+Each behavior runs with `system`, `reduced`, and `off` motion; the appearance check covers System/Warm, light/dark.
+
+```sh
+xcodebuild test -workspace ShotTracker.xcworkspace -scheme ShotTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' -scmProvider system \
+  -parallel-testing-enabled NO -only-testing:ShotTrackerUITests/MotionFeedbackUITests
+```
+
+DEBUG launch arguments `-atelierMotion system|reduced|off` and `-atelierAppearance system|light|dark` use transient
+Atelier preferences, like `-atelierTheme`. Release builds ignore them. The appearance test optionally writes capture
+requests to `TEST_RUNNER_SCREENSHOT_DIR`, using the screenshot tour's host-side `simctl` protocol above. Only that visual test uses
+`-uiTestHoldToast` (requires `-uiTesting`) to keep the toast for 120 seconds while the host captures it. Gesture and Undo
+behavior tests keep the production timeout. UI-test appearances are never published to the widget's shared preferences.
