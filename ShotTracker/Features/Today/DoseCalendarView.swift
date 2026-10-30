@@ -14,9 +14,28 @@ struct CalendarDaySummary: Hashable, Identifiable {
         let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
         return "\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)"
     }
+
+    /// Whether the day's dot is hatched: every dose that day was skipped, or a dose was missed (still overdue once
+    /// the day is over; `today` is the start of today). Today's overdue dose can still be taken, so it keeps the
+    /// plain dot. The hatch is the cue that doesn't rely on colour (a red or grey dot was the only difference); the
+    /// day's list below the calendar says which.
+    func isMissedOrSkipped(today: Date) -> Bool {
+        guard !isForecasted else { return false }
+        return primaryStatus == .skipped || (primaryStatus == .overdue && date < today)
+    }
 }
 
 struct DoseCalendarView: UIViewRepresentable {
+    /// A missed or skipped day's dot: Atelier's hatch in the status tone's content colour over a quiet tint of the
+    /// tone. Not over the tone's `subtleFill`: under Increase Contrast a pattern's ground steps up one role as well
+    /// (`subtleFill` → `border`, the tone at full strength), and the lines measured 1:1 against it and vanished.
+    /// `CalendarDayHatchTests` holds the lines to 3:1 on their ground in both schemes and contrasts.
+    nonisolated static func hatchedDotFill(tone: Tone) -> PatternFill {
+        PatternFill.hatch(.degrees(45), spacing: .points(3)) // ds-allow: a hatch that reads in an 11-point dot
+            .ink(.tone(tone, .content))
+            .ground(.quiet(.tone(tone, .fill)))
+    }
+
     let summaries: [CalendarDaySummary]
     @Binding var selectedDate: Date
 
@@ -67,6 +86,7 @@ struct DoseCalendarView: UIViewRepresentable {
         context.coordinator.update(parent: self)
         // The theme (Settings → Appearance) may have changed.
         context.coordinator.environment = context.environment
+        context.coordinator.hatchedDots.removeAll()
         uiView.tintColor = context.coordinator.uiColor(Theme.Color.accent)
 
         if let selection = uiView.selectionBehavior as? UICalendarSelectionSingleDate {
@@ -129,9 +149,60 @@ struct DoseCalendarView: UIViewRepresentable {
             guard let date = calendarView.calendar.date(from: dateComponents) else { return nil }
             guard let summary = summaryByKey[key(for: date)] else { return nil }
 
-            let color = uiColor(summary.primaryStatus.themeColor).withAlphaComponent(summary.isForecasted ? 0.45 : 1)
             let size: UICalendarView.DecorationSize = summary.count > 2 ? .large : .medium
+            if summary.isMissedOrSkipped(today: Calendar.current.startOfDay(for: .now)),
+               let dot = hatchedDot(tone: summary.primaryStatus.tone, large: size == .large) {
+                // A custom view at the image's intrinsic size (UIKit centres it like the default dot):
+                // `.image(_:size:)` stretched it into a wide capsule.
+                return .customView { UIImageView(image: dot) }
+            }
+            let color = uiColor(summary.primaryStatus.themeColor).withAlphaComponent(summary.isForecasted ? 0.45 : 1)
             return .default(color: color, size: size)
+        }
+
+        /// Hatched dots by tone and size (light and dark in one `UIImageAsset`, so the image view follows the
+        /// scheme). Emptied on every update: the theme or the contrast may have changed.
+        var hatchedDots: [HatchedDotKey: UIImage] = [:]
+
+        struct HatchedDotKey: Hashable {
+            let tone: Tone
+            let large: Bool
+        }
+
+        /// A dot about the size of UIKit's default decoration, filled with `DoseCalendarView.hatchedDotFill(tone:)`,
+        /// drawn once per scheme with `ImageRenderer`.
+        func hatchedDot(tone: Tone, large: Bool) -> UIImage? {
+            let key = HatchedDotKey(tone: tone, large: large)
+            if let cached = hatchedDots[key] { return cached }
+            let diameter = Self.hatchedDotDiameter(large: large)
+            let fill = DoseCalendarView.hatchedDotFill(tone: tone)
+            let scale = calendarView?.traitCollection.displayScale ?? environment.displayScale
+            // Each variant is registered with the display scale too: with the interface style alone the asset handed
+            // back a 1× image of the 3× pixels, three times too big.
+            func traits(_ style: UIUserInterfaceStyle) -> UITraitCollection {
+                UITraitCollection { $0.userInterfaceStyle = style; $0.displayScale = scale }
+            }
+            let asset = UIImageAsset()
+            for style in [UIUserInterfaceStyle.light, .dark] {
+                var resolved = environment
+                resolved.colorScheme = style == .dark ? .dark : .light
+                resolved.displayScale = scale
+                let renderer = ImageRenderer(content: Circle().fill(fill)
+                    .frame(width: diameter, height: diameter)
+                    .environment(\.self, resolved))
+                renderer.scale = scale
+                guard let image = renderer.uiImage?.withRenderingMode(.alwaysOriginal) else { return nil }
+                asset.register(image, with: traits(style))
+            }
+            let style: UIUserInterfaceStyle = calendarView?.traitCollection.userInterfaceStyle == .dark ? .dark : .light
+            let dot = asset.image(with: traits(style))
+            hatchedDots[key] = dot
+            return dot
+        }
+
+        /// The default medium dot measured 32 px at 3× on iOS 27 (about 11 pt); large is about a third bigger.
+        static func hatchedDotDiameter(large: Bool) -> CGFloat {
+            large ? 14 : 11 // ds-allow: UICalendarView's decoration dot sizes
         }
 
         func dateSelection(_ selection: UICalendarSelectionSingleDate, didSelectDate dateComponents: DateComponents?) {

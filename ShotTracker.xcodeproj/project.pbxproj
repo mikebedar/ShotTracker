@@ -790,7 +790,7 @@
 			repositoryURL = "git@github.com:mikebedar/Atelier.git";
 			requirement = {
 				kind = upToNextMinorVersion;
-				minimumVersion = 0.5.1;
+				minimumVersion = 0.5.2;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

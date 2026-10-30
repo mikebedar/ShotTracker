@@ -31,11 +31,15 @@ nonisolated enum ShotTrackerTheme {
             $0.colors.surface.overlay = .hex(light: "#FFFDFA", dark: "#2C2922")
             $0.colors.content.primary = .hex(light: "#2B261B", dark: "#F4F1EC")
             $0.colors.content.secondary = .hex(light: "#686358", dark: "#BBB7AF")
-            $0.colors.content.tertiary = .hex(light: "#908C82", dark: "#838078")
+            // Light was #908C82 (3.1:1): Atelier 0.5.2's `.strict` asks 4.5:1 of metadata text.
+            $0.colors.content.tertiary = .hex(light: "#726F67", dark: "#838078")
             $0.colors.border.subtle = .hex(light: "#DDD9D0", dark: "#403D35")
             // Darker than the old #BBB7AE / #5C584E (1.9:1 and 2.6:1 on the ground): a strong border is a UI colour, 3:1.
             $0.colors.border.strong = .hex(light: "#8F8A80", dark: "#6E6A60")
-            $0.colors.tones[.neutral] = ToneColors(base: .hex(light: "#6F6B63", dark: "#A9A49A"))
+            // Skipped's text in light is a step darker than its fill (#6F6B63 read 4.1:1 on its tint, 3.6:1 under
+            // Increase Contrast; 0.5.2's `.strict` asks 4.5:1 of tone text on a tint).
+            $0.colors.tones[.neutral] = ToneColors(base: .hex(light: "#6F6B63", dark: "#A9A49A"),
+                                                   content: .hex(light: "#5E5B54", dark: "#A9A49A"))
             $0.colors.tones[.late] = ToneColors(base: .hex(light: "#00717C", dark: "#57B5BF"))
             $0.colors.tones[.snoozed] = ToneColors(base: .hex(light: "#755D9D", dark: "#B49CE1"))
         }
