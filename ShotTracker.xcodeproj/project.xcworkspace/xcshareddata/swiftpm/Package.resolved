@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "git@github.com:mikebedar/Atelier.git",
       "state" : {
-        "revision" : "46ca20f9c5c8d024ca6b861fe9ddde76a6450487",
-        "version" : "0.5.2"
+        "revision" : "cc7dea97e18242dcfd9ae60dbe6309aef3be8715",
+        "version" : "0.6.0"
       }
     }
   ],

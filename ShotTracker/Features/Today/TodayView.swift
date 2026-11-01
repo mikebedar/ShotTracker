@@ -187,6 +187,10 @@ struct TodayView: View {
                     bucketSection(title: "Completed", doses: buckets.completed)
                     comingUpSection(groups: comingUpGroups)
                 }
+                // A dose that changes bucket (taken, skipped, undone, or due as the minute turns) leaves one section and
+                // arrives in the other; ids are stable, so a re-render that moves nothing plays nothing.
+                .motion(.standard, value: [buckets.overdue, buckets.takeNow, buckets.comingUpSoon, buckets.laterToday,
+                                           buckets.tonight, buckets.completed].map { $0.map(\.id) })
                 .padding(.l)
                 // iOS 27: the cards' swipe actions (Take on the leading edge, Skip trailing) outside a List.
                 .swipeActionsContainer()
@@ -225,6 +229,8 @@ struct TodayView: View {
                         onUndo: { undoDose(dose) }
                     )
                     .rowSwipeActions(swipeActions(for: dose, status: status))
+                    // A taken dose pops into Completed (the haptic is `feedbackPulse`'s); elsewhere a card arrives as a row.
+                    .motionTransition(title == "Completed" ? .pop : .row)
                 }
             }
         }
@@ -282,7 +288,7 @@ struct TodayView: View {
                 VStack(spacing: 0) {
                     calendarView
                     Divider()
-                    dayList
+                    dayListTransitioning
                 }
             }
             .background(Theme.Color.background)
@@ -296,7 +302,7 @@ struct TodayView: View {
                 // This list absorbs whatever space the calendar didn't need, but never
                 // shrinks below one row + padding so it can't disappear entirely.
                 ScrollView {
-                    dayList
+                    dayListTransitioning
                 }
                 .frame(maxHeight: .infinity)
                 .frame(minHeight: minimumDayListHeight)
@@ -315,6 +321,16 @@ struct TodayView: View {
         )
         .padding(.horizontal)
         .accessibilityIdentifier(AccessibilityID.todayCalendarView)
+    }
+
+    /// Picking a day cross-fades its list (fade through; a dissolve under Reduce Motion) instead of snapping.
+    private var dayListTransitioning: some View {
+        ZStack(alignment: .topLeading) {
+            dayList
+                .id(selectedCalendarDate)
+                .motionTransition(.fadeThrough)
+        }
+        .motion(.standard, value: selectedCalendarDate)
     }
 
     private var dayList: some View {
